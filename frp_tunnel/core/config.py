@@ -8,17 +8,20 @@ import configparser
 
 class ConfigManager:
     def __init__(self):
-        self.config_dir = Path.home() / '.frp-tunnel'
-        self.config_dir.mkdir(exist_ok=True)
+        self.config_dir = Path.home() / 'data' / 'frp'
+        self.config_dir.mkdir(parents=True, exist_ok=True)
         
         self.server_config_path = self.config_dir / 'frps.ini'
         self.client_config_path = self.config_dir / 'frpc.ini'
     
     def create_server_config(self, config: Dict[str, Any]) -> Path:
         """Create server configuration file"""
+        # Use provided token or generate new one
+        token = config.get('token') or self._generate_token()
+        
         config_content = f"""[common]
 bind_port = {config.get('bind_port', 7000)}
-token = {config.get('token', self._generate_token())}
+token = {token}
 
 # Dashboard (optional)
 dashboard_port = 7500

@@ -50,12 +50,28 @@ def setup_server():
     console.print("🖥️  Setting up FRP server...")
     
     port = click.prompt('Server port', default=7000, type=int)
-    token = click.prompt('Authentication token (empty to generate)', default='', show_default=False)
     
-    if not token:
-        import secrets
-        token = f"frp_{secrets.token_hex(16)}"
-        console.print(f"🔑 Generated token: [bold yellow]{token}[/bold yellow]")
+    # Check if config exists and get existing token
+    existing_config = config_manager.get_server_config()
+    existing_token = existing_config.get('token', '')
+    
+    if existing_token:
+        console.print(f"🔑 Found existing token: [bold yellow]{existing_token}[/bold yellow]")
+        use_existing = click.confirm('Use existing token?', default=True)
+        if use_existing:
+            token = existing_token
+        else:
+            token = click.prompt('Authentication token (empty to generate)', default='', show_default=False)
+            if not token:
+                import secrets
+                token = f"frp_{secrets.token_hex(16)}"
+                console.print(f"🔑 Generated token: [bold yellow]{token}[/bold yellow]")
+    else:
+        token = click.prompt('Authentication token (empty to generate)', default='', show_default=False)
+        if not token:
+            import secrets
+            token = f"frp_{secrets.token_hex(16)}"
+            console.print(f"🔑 Generated token: [bold yellow]{token}[/bold yellow]")
     
     # Install server binary
     with console.status("📦 Installing FRP server..."):
@@ -156,6 +172,33 @@ def install():
     with console.status("Downloading..."):
         install_binaries()
     console.print("✅ Installation complete")
+
+@cli.command()
+@click.option('--component', type=click.Choice(['server', 'client']), required=True, help='Component to start')
+def start(component):
+    """Start FRP server or client"""
+    if component == 'server':
+        config = config_manager.get_server_config()
+        if not config:
+            console.print("❌ No server configuration found. Run 'frp-tunnel setup server' first.")
+            return
+        
+        if tunnel_manager.start_server(config):
+            console.print("✅ Server started successfully!")
+        else:
+            console.print("❌ Failed to start server")
+    
+    elif component == 'client':
+        config = config_manager.get_client_config()
+        if not config:
+            console.print("❌ No client configuration found. Run 'frp-tunnel setup client' first.")
+            return
+        
+        if tunnel_manager.start_client(config):
+            console.print("✅ Client started successfully!")
+        else:
+            console.print("❌ Failed to start client")
+
 
 @cli.command()
 def clean():

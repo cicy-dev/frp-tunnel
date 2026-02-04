@@ -32,7 +32,13 @@
 
 ### Step 1: Install
 ```bash
+# Method 1: Using pip (recommended)
 pip install frp-tunnel
+
+# Method 2: From source (for development)
+git clone https://github.com/cicy-dev/frp-tunnel.git
+cd frp-tunnel
+bash install.sh
 ```
 
 ### Step 2: Set Up Server (One-time)
@@ -52,6 +58,24 @@ frp-tunnel client --server YOUR_SERVER_IP --token YOUR_TOKEN
 
 # Then SSH normally
 ssh -p 6001 colab@YOUR_SERVER_IP
+```
+
+## 🎮 Available Commands
+
+```bash
+# Setup and configuration
+frp-tunnel setup                    # Interactive setup wizard
+frp-tunnel status                   # Show tunnel status
+
+# Start/stop services
+frp-tunnel start --component server # Start server
+frp-tunnel start --component client # Start client  
+frp-tunnel stop                     # Stop all tunnels
+
+# Utilities
+frp-tunnel logs                     # View logs
+frp-tunnel clean                    # Clean cache
+frp-tunnel install                  # Install/update binaries
 ```
 
 ## 🔧 Real-World Examples
@@ -83,6 +107,21 @@ frp-tunnel colab --server YOUR_IP --token YOUR_TOKEN --port 6002
 
 # Your laptop
 frp-tunnel client --server YOUR_IP --token YOUR_TOKEN --port 6003
+```
+
+### Example 4: Start/Stop Management
+```bash
+# Start server
+frp-tunnel start --component server
+
+# Check status
+frp-tunnel status
+
+# Stop all
+frp-tunnel stop
+
+# Start client
+frp-tunnel start --component client
 ```
 
 ## 🛠️ Troubleshooting (Common Issues)

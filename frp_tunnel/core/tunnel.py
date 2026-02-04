@@ -14,7 +14,7 @@ from .platform import is_colab
 class TunnelManager:
     def __init__(self):
         self.config_manager = ConfigManager()
-        self.pid_dir = Path.home() / '.frp-tunnel' / 'pids'
+        self.pid_dir = self.config_manager.config_dir / 'pids'
         self.pid_dir.mkdir(parents=True, exist_ok=True)
     
     def start_server(self, config: Dict) -> bool:
@@ -42,6 +42,9 @@ class TunnelManager:
             if process.poll() is None:
                 return True
             else:
+                # Process died, get error output
+                stdout, stderr = process.communicate()
+                print(f"Server failed to start. Error: {stderr.decode()}")
                 return False
                 
         except Exception as e:
