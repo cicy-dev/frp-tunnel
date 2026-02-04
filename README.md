@@ -1,5 +1,7 @@
 # 🚀 FRP SSH Tunnel - Easy Remote Access Solution
 
+**[中文文档](README_CN.md) | [English](README.md)**
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-blue.svg)](https://github.com/cicy-dev/frp-tunnel)
 [![Shell Script](https://img.shields.io/badge/Shell-Bash%20%7C%20PowerShell-green.svg)](https://github.com/cicy-dev/frp-tunnel)
