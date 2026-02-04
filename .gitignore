@@ -80,6 +80,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+build_env/
 
 # Spyder project settings
 .spyderproject
@@ -99,6 +100,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# PyPI credentials
+.pypirc
+
 # FRP specific
 *.log
 *.pid
@@ -116,11 +120,20 @@ config/local_*
 .idea/
 *.swp
 *.swo
+*~
 
-# macOS
+# OS
 .DS_Store
-
-# Windows
-Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
 ehthumbs.db
+Thumbs.db
 Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/

@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "frp-tunnel"
+version = "1.0.5"
 description = "Easy SSH tunneling with FRP - One command setup for Google Colab and remote servers"
 readme = "README.md"
 license = "MIT"
@@ -35,7 +36,7 @@ dependencies = [
     "pyyaml>=5.4.0",
     "psutil>=5.8.0"
 ]
-dynamic = ["version"]
+dynamic = []
 
 [project.optional-dependencies]
 dev = [
