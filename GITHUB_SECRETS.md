@@ -1,6 +1,32 @@
 # GitHub Secrets Configuration
 
-## Required Secrets for PyPI Publishing
+## Trusted Publishing Setup (Recommended)
+
+**No secrets needed!** Use PyPI's Trusted Publishing for secure, token-free publishing.
+
+### Setup Steps:
+1. **First, create the package on PyPI manually:**
+   ```bash
+   pip install build twine
+   python -m build
+   twine upload dist/*
+   ```
+
+2. **Then configure Trusted Publisher:**
+   - Go to: https://pypi.org/manage/project/frp-tunnel/settings/publishing/
+   - Click "Add a new pending publisher"
+   - Fill in:
+     - **PyPI Project Name**: `frp-tunnel`
+     - **Owner**: `cicy-dev`
+     - **Repository name**: `frp-tunnel`
+     - **Workflow filename**: `publish.yml`
+     - **Environment name**: (leave empty)
+
+3. **Future releases will publish automatically** when you push tags!
+
+---
+
+## Alternative: API Token Method (Legacy)
 
 Add these secrets in your GitHub repository settings:
 **Settings → Secrets and variables → Actions → New repository secret**
@@ -27,8 +53,8 @@ Add these secrets in your GitHub repository settings:
 
 ## How to Use the Action
 
-### Automatic Publishing (on Release)
-1. Create a new release on GitHub
+### Automatic Publishing (on Tag Push)
+1. Push a version tag: `git tag v1.0.2 && git push --tags`
 2. Action will automatically publish to PyPI
 
 ### Manual Publishing
@@ -41,24 +67,14 @@ Add these secrets in your GitHub repository settings:
 
 ## Security Notes
 
-- ✅ Tokens are encrypted and only accessible to workflows
-- ✅ Use project-scoped tokens when possible
-- ✅ Rotate tokens periodically
-- ✅ Never commit tokens to code
-
-## Token Format Examples
-
-```
-# PyPI Token (production)
-pypi-AgEIcHlwaS5vcmcCJGE4ZjY3YjE4LWE5...
-
-# TestPyPI Token (testing)  
-pypi-AgEIcHlwaS5vcmcCJGE4ZjY3YjE4LWE5...
-```
+- ✅ **Trusted Publishing** is more secure than API tokens
+- ✅ No secrets needed in repository
+- ✅ Direct GitHub → PyPI authentication
+- ✅ Automatic token rotation
 
 ## Verification
 
 After setup, test with:
-1. Manual workflow run to TestPyPI
-2. Check package appears at: https://test.pypi.org/project/frp-tunnel/
-3. Test install: `pip install --index-url https://test.pypi.org/simple/ frp-tunnel`
+1. Push a new tag to trigger automatic publishing
+2. Check package appears at: https://pypi.org/project/frp-tunnel/
+3. Test install: `pip install frp-tunnel`
