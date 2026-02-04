@@ -30,20 +30,22 @@ if defined GITHUB_ACTIONS (
         set /p TEST_PYPI_TOKEN="请输入你的 TestPyPI API 令牌 (以 pypi- 开头): "
         set /p PYPI_TOKEN="请输入你的 PyPI API 令牌 (以 pypi- 开头): "
         
-        echo [distutils] > "%USERPROFILE%\.pypirc"
-        echo index-servers = >> "%USERPROFILE%\.pypirc"
-        echo     pypi >> "%USERPROFILE%\.pypirc"
-        echo     testpypi >> "%USERPROFILE%\.pypirc"
-        echo. >> "%USERPROFILE%\.pypirc"
-        echo [pypi] >> "%USERPROFILE%\.pypirc"
-        echo repository = https://upload.pypi.org/legacy/ >> "%USERPROFILE%\.pypirc"
-        echo username = __token__ >> "%USERPROFILE%\.pypirc"
-        echo password = %PYPI_TOKEN% >> "%USERPROFILE%\.pypirc"
-        echo. >> "%USERPROFILE%\.pypirc"
-        echo [testpypi] >> "%USERPROFILE%\.pypirc"
-        echo repository = https://test.pypi.org/legacy/ >> "%USERPROFILE%\.pypirc"
-        echo username = __token__ >> "%USERPROFILE%\.pypirc"
-        echo password = %TEST_PYPI_TOKEN% >> "%USERPROFILE%\.pypirc"
+        (
+        echo [distutils]
+        echo index-servers =
+        echo     pypi
+        echo     testpypi
+        echo.
+        echo [pypi]
+        echo repository = https://upload.pypi.org/legacy/
+        echo username = __token__
+        echo password = %PYPI_TOKEN%
+        echo.
+        echo [testpypi]
+        echo repository = https://test.pypi.org/legacy/
+        echo username = __token__
+        echo password = %TEST_PYPI_TOKEN%
+        ) > "%USERPROFILE%\.pypirc"
         
         echo ✅ PyPI 令牌已保存
         
