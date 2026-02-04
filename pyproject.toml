@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "frp-tunnel"
 description = "Easy SSH tunneling with FRP - One command setup for Google Colab and remote servers"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "Your Name", email = "your.email@example.com"}
 ]
@@ -16,7 +16,6 @@ keywords = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.7",
@@ -48,17 +47,17 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-username/frp-ssh-tunnel"
-Repository = "https://github.com/your-username/frp-ssh-tunnel.git"
-Issues = "https://github.com/your-username/frp-ssh-tunnel/issues"
-Documentation = "https://github.com/your-username/frp-ssh-tunnel/docs"
+Homepage = "https://github.com/cicy-soul/frp-tunnel"
+Repository = "https://github.com/cicy-soul/frp-tunnel.git"
+Issues = "https://github.com/cicy-soul/frp-tunnel/issues"
+Documentation = "https://github.com/cicy-soul/frp-tunnel/docs"
 
 [project.scripts]
 frp-tunnel = "frp_tunnel.cli:main"
 frp = "frp_tunnel.cli:main"
 
 [tool.setuptools]
-packages = ["frp_tunnel"]
+packages = ["frp_tunnel", "frp_tunnel.core"]
 
 [tool.setuptools_scm]
 write_to = "frp_tunnel/_version.py"
