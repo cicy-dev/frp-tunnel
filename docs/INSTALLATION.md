@@ -39,7 +39,7 @@ gcloud compute firewall-rules create frp-tunnel \
 gcloud compute ssh frp-server --zone=us-central1-a
 
 # Download and run setup
-wget https://raw.githubusercontent.com/your-username/frp-ssh-tunnel/main/scripts/frp-server-gcp.sh
+wget https://raw.githubusercontent.com/cicy-dev/frp-tunnel/main/scripts/frp-server-gcp.sh
 chmod +x frp-server-gcp.sh
 ./frp-server-gcp.sh
 ```
@@ -59,7 +59,7 @@ The script will display a token like:
 
 ```python
 # In a Colab cell
-!wget -q https://raw.githubusercontent.com/your-username/frp-ssh-tunnel/main/scripts/frp-client-colab.sh
+!wget -q https://raw.githubusercontent.com/cicy-dev/frp-tunnel/main/scripts/frp-client-colab.sh
 !bash frp-client-colab.sh colab 6001 YOUR_SERVER_IP YOUR_TOKEN
 ```
 
@@ -67,7 +67,7 @@ The script will display a token like:
 
 ```powershell
 # Download script
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/your-username/frp-ssh-tunnel/main/scripts/frp-client-windows.ps1" -OutFile "frp-client-windows.ps1"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/cicy-dev/frp-tunnel/main/scripts/frp-client-windows.ps1" -OutFile "frp-client-windows.ps1"
 
 # Run setup
 .\frp-client-windows.ps1 -Username "colab" -RemotePort 6001 -ServerAddr "YOUR_SERVER_IP" -Token "YOUR_TOKEN"
@@ -76,7 +76,7 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/your-username/frp-ssh-
 ### Linux/macOS
 
 ```bash
-wget https://raw.githubusercontent.com/your-username/frp-ssh-tunnel/main/scripts/frp-client-linux.sh
+wget https://raw.githubusercontent.com/cicy-dev/frp-tunnel/main/scripts/frp-client-linux.sh
 bash frp-client-linux.sh colab 6001 YOUR_SERVER_IP YOUR_TOKEN
 ```
 

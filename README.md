@@ -1,8 +1,8 @@
 # 🚀 FRP SSH Tunnel - Easy Remote Access Solution
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-blue.svg)](https://github.com/your-username/frp-ssh-tunnel)
-[![Shell Script](https://img.shields.io/badge/Shell-Bash%20%7C%20PowerShell-green.svg)](https://github.com/your-username/frp-ssh-tunnel)
+[![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-blue.svg)](https://github.com/cicy-dev/frp-tunnel)
+[![Shell Script](https://img.shields.io/badge/Shell-Bash%20%7C%20PowerShell-green.svg)](https://github.com/cicy-dev/frp-tunnel)
 
 > **One-click SSH tunnel setup for Google Colab, remote servers, and local development environments using FRP (Fast Reverse Proxy).**
 
@@ -188,7 +188,7 @@ grep token ~/data/frp/frps.ini
 ## 📁 Project Structure
 
 ```
-frp-ssh-tunnel/
+frp-tunnel/
 ├── 📄 README.md                 # This file
 ├── 📄 LICENSE                   # MIT License
 ├── 📁 scripts/
@@ -231,13 +231,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📊 Stats
 
-![GitHub stars](https://img.shields.io/github/stars/your-username/frp-ssh-tunnel?style=social)
-![GitHub forks](https://img.shields.io/github/forks/your-username/frp-ssh-tunnel?style=social)
-![GitHub issues](https://img.shields.io/github/issues/your-username/frp-ssh-tunnel)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/your-username/frp-ssh-tunnel)
+![GitHub stars](https://img.shields.io/github/stars/cicy-dev/frp-tunnel?style=social)
+![GitHub forks](https://img.shields.io/github/forks/cicy-dev/frp-tunnel?style=social)
+![GitHub issues](https://img.shields.io/github/issues/cicy-dev/frp-tunnel)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/cicy-dev/frp-tunnel)
 
 ---
 
 ⭐ **Star this repository if it helped you!**
 
-📧 **Questions?** Open an [issue](https://github.com/your-username/frp-ssh-tunnel/issues) or start a [discussion](https://github.com/your-username/frp-ssh-tunnel/discussions)
+📧 **Questions?** Open an [issue](https://github.com/cicy-dev/frp-tunnel/issues) or start a [discussion](https://github.com/cicy-dev/frp-tunnel/discussions)

@@ -47,10 +47,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/cicy-soul/frp-tunnel"
-Repository = "https://github.com/cicy-soul/frp-tunnel.git"
-Issues = "https://github.com/cicy-soul/frp-tunnel/issues"
-Documentation = "https://github.com/cicy-soul/frp-tunnel/docs"
+Homepage = "https://github.com/cicy-dev/frp-tunnel"
+Repository = "https://github.com/cicy-dev/frp-tunnel.git"
+Issues = "https://github.com/cicy-dev/frp-tunnel/issues"
+Documentation = "https://github.com/cicy-dev/frp-tunnel/docs"
 
 [project.scripts]
 frp-tunnel = "frp_tunnel.cli:main"

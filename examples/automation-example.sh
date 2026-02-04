@@ -63,7 +63,7 @@ check_prerequisites() {
 download_client_script() {
     log "Downloading FRP client script..."
     
-    local script_url="https://raw.githubusercontent.com/your-username/frp-ssh-tunnel/main/scripts/frp-client-colab.sh"
+    local script_url="https://raw.githubusercontent.com/cicy-dev/frp-tunnel/main/scripts/frp-client-colab.sh"
     
     if wget -q "$script_url" -O frp-client-colab.sh; then
         chmod +x frp-client-colab.sh

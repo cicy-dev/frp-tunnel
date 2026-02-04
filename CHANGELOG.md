@@ -68,5 +68,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Documentation linting and link checking
 - Issue and PR templates for better collaboration
 
-[Unreleased]: https://github.com/your-username/frp-ssh-tunnel/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/your-username/frp-ssh-tunnel/releases/tag/v1.0.0
+[Unreleased]: https://github.com/cicy-dev/frp-tunnel/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/cicy-dev/frp-tunnel/releases/tag/v1.0.0

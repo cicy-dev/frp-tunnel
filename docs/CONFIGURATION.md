@@ -137,7 +137,7 @@ Host colab-secure
 
 ```bash
 # Create specific rule
-gcloud compute firewall-rules create frp-ssh-tunnel \
+gcloud compute firewall-rules create frp-tunnel \
     --allow tcp:6001-6010,tcp:7000 \
     --source-ranges YOUR_IP_RANGE \
     --target-tags frp-server

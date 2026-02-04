@@ -384,4 +384,4 @@ When reporting issues, please include:
 4. Output from `debug-info.sh`
 5. Steps to reproduce the issue
 
-Create an issue at: https://github.com/your-username/frp-ssh-tunnel/issues
+Create an issue at: https://github.com/cicy-dev/frp-tunnel/issues
