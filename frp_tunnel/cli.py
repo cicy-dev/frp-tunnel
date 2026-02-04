@@ -201,6 +201,30 @@ def start(component):
 
 
 @cli.command()
+def update():
+    """Update frp-tunnel to latest version"""
+    import subprocess
+    import sys
+    
+    console.print("🔄 Updating frp-tunnel...")
+    
+    try:
+        # Update using pip
+        result = subprocess.run([
+            sys.executable, '-m', 'pip', 'install', '--upgrade', 'frp-tunnel'
+        ], capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            console.print("✅ frp-tunnel updated successfully!")
+            console.print("🔧 Run 'frp-tunnel --version' to see the new version")
+        else:
+            console.print(f"❌ Update failed: {result.stderr}")
+            
+    except Exception as e:
+        console.print(f"❌ Update error: {e}")
+
+
+@cli.command()
 def clean():
     """Clean cache and temporary files"""
     console.print("🧹 Cleaning cache...")
