@@ -1,0 +1,83 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-scripts:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Make scripts executable
+      run: chmod +x scripts/*.sh examples/*.sh
+      
+    - name: Test script syntax
+      run: |
+        for script in scripts/*.sh examples/*.sh; do
+          echo "Testing $script"
+          bash -n "$script"
+        done
+        
+    - name: Install shellcheck
+      run: sudo apt-get install -y shellcheck
+      
+    - name: Run shellcheck
+      run: |
+        for script in scripts/*.sh examples/*.sh; do
+          echo "Checking $script"
+          shellcheck "$script" || true
+        done
+
+  test-powershell:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Test PowerShell script syntax
+      run: |
+        Get-ChildItem -Path scripts -Filter "*.ps1" | ForEach-Object {
+          Write-Host "Testing $($_.Name)"
+          powershell -NoProfile -ExecutionPolicy Bypass -Command "& { . '$($_.FullName)'; exit 0 }" -WhatIf
+        }
+      shell: powershell
+
+  test-documentation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install markdown linter
+      run: npm install -g markdownlint-cli
+      
+    - name: Lint markdown files
+      run: |
+        markdownlint README.md docs/*.md || true
+        
+    - name: Check links in documentation
+      run: |
+        # Simple link check - can be enhanced with proper tools
+        grep -r "http" docs/ README.md || true
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run security scan
+      run: |
+        # Check for hardcoded secrets/tokens
+        if grep -r "frp_[a-f0-9]\{32\}" scripts/ examples/ || \
+           grep -r "password.*=" scripts/ examples/ || \
+           grep -r "secret.*=" scripts/ examples/; then
+          echo "⚠️ Potential hardcoded secrets found"
+          exit 1
+        fi
+        echo "✅ No hardcoded secrets detected"

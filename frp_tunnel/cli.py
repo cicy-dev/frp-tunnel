@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+"""
+FRP Tunnel CLI - Easy SSH tunneling with FRP
+"""
+
+import click
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+from .core.installer import install_binaries
+from .core.tunnel import TunnelManager
+from .core.platform import detect_platform, is_colab
+from .core.config import ConfigManager
+
+console = Console()
+tunnel_manager = TunnelManager()
+config_manager = ConfigManager()
+
+@click.group()
+@click.version_option()
+def cli():
+    """🚀 FRP Tunnel - Easy SSH tunneling with FRP"""
+    pass
+
+@cli.command()
+@click.option('--mode', type=click.Choice(['server', 'client', 'colab', 'auto']), default='auto', help='Setup mode')
+@click.option('--server', help='Server address (for client mode)')
+@click.option('--token', help='Authentication token')
+@click.option('--port', default=6001, help='Remote port')
+@click.option('--user', default='colab', help='SSH username')
+def setup(mode, server, token, port, user):
+    """Interactive setup wizard"""
+    console.print(Panel.fit("🚀 FRP Tunnel Setup", style="bold blue"))
+    
+    # Auto-detect mode if not specified
+    if mode == 'auto':
+        if is_colab():
+            mode = 'colab'
+            console.print("🔬 Detected Google Colab environment")
+        else:
+            mode = click.prompt('Setup mode', type=click.Choice(['server', 'client']))
+    
+    if mode == 'server':
+        setup_server()
+    elif mode in ['client', 'colab']:
+        setup_client(mode, server, token, port, user)
+
+def setup_server():
+    """Setup FRP server"""
+    console.print("🖥️  Setting up FRP server...")
+    
+    port = click.prompt('Server port', default=7000, type=int)
+    token = click.prompt('Authentication token (empty to generate)', default='', show_default=False)
+    
+    if not token:
+        import secrets
+        token = f"frp_{secrets.token_hex(16)}"
+        console.print(f"🔑 Generated token: [bold yellow]{token}[/bold yellow]")
+    
+    # Install server binary
+    with console.status("📦 Installing FRP server..."):
+        install_binaries('server')
+    
+    # Create configuration
+    config = {
+        'bind_port': port,
+        'token': token
+    }
+    config_manager.create_server_config(config)
+    
+    # Start server
+    if click.confirm('Start server now?', default=True):
+        tunnel_manager.start_server(config)
+        console.print("✅ Server started successfully!")
+        console.print(f"🔑 Share this token with clients: [bold]{token}[/bold]")
+
+def setup_client(mode, server, token, port, user):
+    """Setup FRP client"""
+    console.print(f"📱 Setting up FRP client ({mode})...")
+    
+    # Get configuration
+    if not server:
+        server = click.prompt('Server address')
+    if not token:
+        token = click.prompt('Authentication token')
+    
+    # Install client binary
+    with console.status("📦 Installing FRP client..."):
+        install_binaries('client')
+    
+    # Create configuration
+    config = {
+        'server_addr': server,
+        'server_port': 7000,
+        'token': token,
+        'remote_port': port,
+        'username': user
+    }
+    config_manager.create_client_config(config)
+    
+    # Setup SSH for Colab
+    if mode == 'colab':
+        with console.status("🔧 Setting up SSH..."):
+            tunnel_manager.setup_colab_ssh(user)
+    
+    # Start client
+    tunnel_manager.start_client(config)
+    console.print("✅ Client connected successfully!")
+    console.print(f"🔗 SSH command: [bold]ssh -p {port} {user}@{server}[/bold]")
+
+@cli.command()
+@click.option('--server', required=True, help='Server address')
+@click.option('--token', required=True, help='Authentication token')
+@click.option('--port', default=6001, help='Remote port')
+@click.option('--user', default='colab', help='SSH username')
+def colab(server, token, port, user):
+    """Quick setup for Google Colab"""
+    console.print("🔬 Setting up Google Colab tunnel...")
+    setup_client('colab', server, token, port, user)
+
+@cli.command()
+def status():
+    """Show tunnel status"""
+    console.print("📊 Tunnel Status")
+    status_info = tunnel_manager.get_status()
+    
+    if status_info['server_running']:
+        console.print("🖥️  Server: [green]Running[/green]")
+    else:
+        console.print("🖥️  Server: [red]Stopped[/red]")
+    
+    if status_info['client_running']:
+        console.print("📱 Client: [green]Connected[/green]")
+    else:
+        console.print("📱 Client: [red]Disconnected[/red]")
+
+@cli.command()
+def stop():
+    """Stop all tunnels"""
+    console.print("🛑 Stopping tunnels...")
+    tunnel_manager.stop_all()
+    console.print("✅ All tunnels stopped")
+
+@cli.command()
+def logs():
+    """View tunnel logs"""
+    console.print("📝 Recent logs:")
+    logs = tunnel_manager.get_logs()
+    for log_line in logs:
+        console.print(log_line)
+
+@cli.command()
+def install():
+    """Install/update FRP binaries"""
+    console.print("📦 Installing FRP binaries...")
+    with console.status("Downloading..."):
+        install_binaries()
+    console.print("✅ Installation complete")
+
+@cli.command()
+def clean():
+    """Clean cache and temporary files"""
+    console.print("🧹 Cleaning cache...")
+    tunnel_manager.clean_cache()
+    console.print("✅ Cache cleaned")
+
+def main():
+    """Entry point for the CLI"""
+    cli()
+
+if __name__ == '__main__':
+    main()

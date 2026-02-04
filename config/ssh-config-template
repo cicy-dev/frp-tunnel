@@ -1,0 +1,35 @@
+# SSH Config Generator
+# Based on frps.ini configuration, generate SSH client config
+
+# Copy this to your ~/.ssh/config file
+
+# Default demo configurations
+Host colab-6001
+    HostName 35.220.164.135
+    User colab
+    Port 6001
+    IdentityFile ~/.ssh/id_rsa
+
+Host colab-6002
+    HostName 35.220.164.135
+    User colab
+    Port 6002
+    IdentityFile ~/.ssh/id_rsa
+
+Host colab-6003
+    HostName 35.220.164.135
+    User colab
+    Port 6003
+    IdentityFile ~/.ssh/id_rsa
+
+# Usage examples:
+# ssh colab-6001
+# ssh colab-6002
+# ssh colab-6003
+
+# Custom configurations (modify as needed)
+Host myuser-6005
+    HostName 35.220.164.135
+    User myuser
+    Port 6005
+    IdentityFile ~/.ssh/id_rsa

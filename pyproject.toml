@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "frp-tunnel"
+description = "Easy SSH tunneling with FRP - One command setup for Google Colab and remote servers"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+keywords = [
+    "frp", "ssh", "tunnel", "proxy", "colab", "remote", "development"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Internet :: Proxy Servers",
+    "Topic :: System :: Networking",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+requires-python = ">=3.7"
+dependencies = [
+    "click>=8.0.0",
+    "rich>=12.0.0",
+    "requests>=2.25.0",
+    "pyyaml>=5.4.0",
+    "psutil>=5.8.0"
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-cov>=2.0",
+    "black>=21.0",
+    "flake8>=3.8",
+    "mypy>=0.800"
+]
+
+[project.urls]
+Homepage = "https://github.com/your-username/frp-ssh-tunnel"
+Repository = "https://github.com/your-username/frp-ssh-tunnel.git"
+Issues = "https://github.com/your-username/frp-ssh-tunnel/issues"
+Documentation = "https://github.com/your-username/frp-ssh-tunnel/docs"
+
+[project.scripts]
+frp-tunnel = "frp_tunnel.cli:main"
+frp = "frp_tunnel.cli:main"
+
+[tool.setuptools]
+packages = ["frp_tunnel"]
+
+[tool.setuptools_scm]
+write_to = "frp_tunnel/_version.py"
