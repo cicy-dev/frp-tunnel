@@ -31,20 +31,7 @@ jobs:
 
           # 3. 创建 Admin 用户
           # 使用一个全新的强密码，且不包含 "cicy" 字样
-                    
-          Add-Type -AssemblyName System.Security
-          $charSet = @{
-            Upper   = [char[]](65..90)
-            Lower   = [char[]](97..122)
-            Number  = [char[]](48..57)
-            Special = ([char[]](33..47) + [char[]](58..64) + [char[]](91..96) + [char[]](123..126))
-          }
-          $rawPassword = @()
-          $rawPassword += $charSet.Upper | Get-Random -Count 4
-          $rawPassword += $charSet.Lower | Get-Random -Count 4
-          $rawPassword += $charSet.Number | Get-Random -Count 4
-          $rawPassword += $charSet.Special | Get-Random -Count 4
-          $password = -join ($rawPassword | Sort-Object { Get-Random })
+          $password = "123456"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
           
           # 如果用户存在则先删除，确保环境干净
@@ -102,6 +89,7 @@ jobs:
           Start-Sleep -Seconds 5
           Write-Host "FRP Tunnel started."
         shell: powershell
+      
       - name: Keep alive
         run: |
           Write-Host "Keeping alive for 6 hours..."
