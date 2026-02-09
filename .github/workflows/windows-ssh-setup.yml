@@ -53,10 +53,12 @@ jobs:
           New-LocalUser -Name $env:SSH_USER -Password $securePass -AccountNeverExpires -PasswordNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member $env:SSH_USER
           
-          # 创建 D:\projects 目录并设置为用户主目录
+          # 创建 D:\projects 目录
           New-Item -ItemType Directory -Path "D:\projects" -Force
-          $user = Get-LocalUser -Name $env:SSH_USER
-          Set-LocalUser -Name $env:SSH_USER -HomeDirectory "D:\projects"
+          
+          # 配置 SSH 默认目录 - 修改 sshd_config
+          $sshdConfig = "C:\ProgramData\ssh\sshd_config"
+          Add-Content $sshdConfig "`nForceCommand cd /d D:\projects & cmd"
           
           # 4. 配置 SSH 公钥 (针对管理员组)
           $authKeyPath = "C:\ProgramData\ssh\administrators_authorized_keys"
