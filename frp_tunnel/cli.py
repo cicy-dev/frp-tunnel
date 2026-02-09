@@ -169,6 +169,7 @@ server_port = 7000
 token = {token}
 log_file = {DATA_DIR}/frpc.log
 log_level = info
+login_fail_exit = false
 
 [ssh_{port}]
 type = tcp
