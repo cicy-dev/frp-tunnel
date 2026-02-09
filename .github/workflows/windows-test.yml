@@ -20,9 +20,23 @@ jobs:
       - name: Install package
         run: pip install -e .
       
-      - name: Test FRP Tunnel
+      - name: Test FRP Tunnel Commands
         env:
           FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
         run: |
           frp-tunnel --help
           frp-tunnel --version
+      
+      - name: Connect to FRP Server
+        env:
+          FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
+        run: |
+          frp-tunnel start --component client --server 34.102.78.219 --token $env:FRP_TOKEN --port 6002
+          Start-Sleep -Seconds 5
+          frp-tunnel status
+        shell: powershell
+      
+      - name: Test Connection
+        run: |
+          netstat -an | findstr "7000"
+        shell: cmd
