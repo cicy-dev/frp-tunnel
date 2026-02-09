@@ -43,12 +43,12 @@ jobs:
         run: |
           pip install frp-tunnel
           frp-tunnel client --server 34.102.78.219 --token $env:FRP_TOKEN --port 6003
-          Write-Host "✅ FRP Tunnel connected on port 6003"
+          Write-Host "FRP Tunnel connected on port 6003"
         shell: powershell
       
       - name: Show connection info
         run: |
-          Write-Host "📋 Connection ready!"
+          Write-Host "Connection ready!"
           Write-Host "Username: $env:USERNAME"
           Write-Host "SSH from server: ssh -p 6003 $env:USERNAME@34.102.78.219"
           Write-Host "Keeping connection alive for 5 minutes..."
