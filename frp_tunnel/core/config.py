@@ -1,54 +1,48 @@
 """Configuration management"""
 
-import os
 import secrets
 from pathlib import Path
 from typing import Dict, Any
-import configparser
+import yaml
 
 class ConfigManager:
     def __init__(self):
         self.config_dir = Path.home() / 'data' / 'frp'
         self.config_dir.mkdir(parents=True, exist_ok=True)
         
-        self.server_config_path = self.config_dir / 'frps.ini'
+        self.server_config_path = self.config_dir / 'frps.yaml'
     
     def create_server_config(self, config: Dict[str, Any]) -> Path:
-        """Create server configuration file"""
+        """Create server configuration file in YAML format"""
         # Preserve existing config if it exists
         existing_config = {}
         if self.server_config_path.exists():
-            parser = configparser.ConfigParser()
-            parser.read(self.server_config_path)
-            if 'common' in parser:
-                existing_config = dict(parser['common'])
+            with open(self.server_config_path) as f:
+                existing_config = yaml.safe_load(f) or {}
         
         # Use provided token or existing token or generate new one
-        token = config.get('token') or existing_config.get('token') or self._generate_token()
-        bind_port = config.get('bind_port', existing_config.get('bind_port', 7000))
-        dashboard_port = existing_config.get('dashboard_port', 7500)
+        token = config.get('token') or existing_config.get('auth', {}).get('token') or self._generate_token()
+        bind_port = config.get('bind_port', existing_config.get('bindPort', 7000))
+        dashboard_port = existing_config.get('webServer', {}).get('port', 7500)
         
-        config_content = f"""[common]
-bind_port = {bind_port}
-token = {token}
-
-# Dashboard (optional)
-dashboard_port = {dashboard_port}
-dashboard_user = admin
-dashboard_pwd = admin
-
-# Logging
-log_file = {self.config_dir}/frps.log
-log_level = info
-log_max_days = 3
-
-# Security
-authentication_method = token
-heartbeat_timeout = 90
-"""
+        yaml_config = {
+            'bindPort': bind_port,
+            'auth': {'token': token},
+            'webServer': {
+                'addr': '0.0.0.0',
+                'port': dashboard_port,
+                'user': 'admin',
+                'password': 'admin'
+            },
+            'log': {
+                'to': str(self.config_dir / 'frps.log'),
+                'level': 'info',
+                'maxDays': 3
+            }
+        }
         
         with open(self.server_config_path, 'w') as f:
-            f.write(config_content)
+            yaml.dump(yaml_config, f, default_flow_style=False)
         
         return self.server_config_path
     
@@ -57,13 +51,8 @@ heartbeat_timeout = 90
         if not self.server_config_path.exists():
             return {}
         
-        config = configparser.ConfigParser()
-        config.read(self.server_config_path)
-        
-        if 'common' not in config:
-            return {}
-        
-        return dict(config['common'])
+        with open(self.server_config_path) as f:
+            return yaml.safe_load(f) or {}
     
     def _generate_token(self) -> str:
         """Generate a secure token"""

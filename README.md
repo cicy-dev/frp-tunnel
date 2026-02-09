@@ -67,7 +67,7 @@ ft client-status                # Show client status
 # Forward to frpc/frps
 ft frpc -c ~/data/frp/frpc.yaml           # Start client
 ft frpc reload -c ~/data/frp/frpc.yaml    # Hot reload
-ft frps -c ~/data/frp/frps.ini            # Start server
+ft frps -c ~/data/frp/frps.yaml           # Start server
 
 # Utilities
 ft token               # Generate new token
@@ -92,14 +92,19 @@ $ ft server-status
 
 ## 🔧 Configuration
 
-### Server Config (`~/data/frp/frps.ini`)
-```ini
-[common]
-bind_port = 7000
-token = frp_your_token_here
-dashboard_port = 7500
-dashboard_user = admin
-dashboard_pwd = admin
+### Server Config (`~/data/frp/frps.yaml`)
+```yaml
+bindPort: 7000
+auth:
+  token: frp_your_token_here
+webServer:
+  addr: 0.0.0.0
+  port: 7500
+  user: admin
+  password: admin
+log:
+  to: ~/data/frp/frps.log
+  level: info
 ```
 
 ### Client Config (`~/data/frp/frpc.yaml`)
@@ -127,7 +132,7 @@ proxies:
     remotePort: 6004
 ```
 
-**Note**: Client uses YAML format (INI is deprecated in FRP 0.52+). The `webServer` section enables hot reload support.
+**Note**: Both server and client use YAML format (INI is deprecated in FRP 0.52+). The `webServer` section enables hot reload and dashboard access.
 
 Use `ft client-add-port` and `ft client-remove-port` commands to manage ports easily.
 

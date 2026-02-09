@@ -21,7 +21,7 @@ if sys.platform == 'win32':
 HOME = Path.home()
 DATA_DIR = HOME / 'data' / 'frp'
 BIN_DIR = HOME / '.frp-tunnel' / 'bin'
-SERVER_INI = DATA_DIR / 'frps.ini'
+SERVER_YAML = DATA_DIR / 'frps.yaml'
 CLIENT_YAML = DATA_DIR / 'frpc.yaml'
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -75,7 +75,7 @@ def token():
     """Generate a new token"""
     new_token = gen_token()
     console.print(f"🔑 Generated token: [bold yellow]{new_token}[/bold yellow]")
-    console.print("💡 Configure manually in frps.ini")
+    console.print("💡 Configure manually in frps.yaml")
 
 @cli.command('frpc', context_settings={'ignore_unknown_options': True, 'allow_interspersed_args': False})
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
@@ -100,7 +100,7 @@ def forward_frps(args):
     """Forward command to frps binary
     
     Examples:
-      ft frps -c ~/data/frp/frps.ini
+      ft frps -c ~/data/frp/frps.yaml
     """
     download_frp()
     frps_bin = BIN_DIR / ('frps.exe' if sys.platform == 'win32' else 'frps')
@@ -148,20 +148,26 @@ def server(force, restart):
         stop_server()
     
     # Generate config if not exists
-    if not SERVER_INI.exists():
+    if not SERVER_YAML.exists():
         console.print("📝 Generating server config...")
         token = gen_token()
-        config = f"""[common]
-bind_port = 7000
-token = {token}
-dashboard_port = 7500
-dashboard_user = admin
-dashboard_pwd = admin
-log_file = {DATA_DIR}/frps.log
-log_level = info
-authentication_method = token
-"""
-        SERVER_INI.write_text(config)
+        import yaml
+        config = {
+            'bindPort': 7000,
+            'auth': {'token': token},
+            'webServer': {
+                'addr': '0.0.0.0',
+                'port': 7500,
+                'user': 'admin',
+                'password': 'admin'
+            },
+            'log': {
+                'to': str(DATA_DIR / 'frps.log'),
+                'level': 'info'
+            }
+        }
+        with open(SERVER_YAML, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False)
         console.print(f"🔑 Token: [bold yellow]{token}[/bold yellow]")
     
     # Start server
@@ -169,10 +175,10 @@ authentication_method = token
     frps = BIN_DIR / ('frps.exe' if sys.platform == 'win32' else 'frps')
     
     if sys.platform == 'win32':
-        subprocess.Popen([str(frps), '-c', str(SERVER_INI)], 
+        subprocess.Popen([str(frps), '-c', str(SERVER_YAML)], 
                         creationflags=subprocess.CREATE_NO_WINDOW)
     else:
-        subprocess.Popen([str(frps), '-c', str(SERVER_INI)],
+        subprocess.Popen([str(frps), '-c', str(SERVER_YAML)],
                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
     import time
@@ -394,7 +400,7 @@ def server_status():
         ip = get_public_ip()
         if ip != 'unknown':
             console.print(f"   🌐 Public IP: [cyan]{ip}[/cyan]")
-        console.print(f"   📄 Config: [cyan]{SERVER_INI}[/cyan]")
+        console.print(f"   📄 Config: [cyan]{SERVER_YAML}[/cyan]")
         log_file = DATA_DIR / 'frps.log'
         if log_file.exists():
             console.print(f"   📋 Log: [cyan]{log_file}[/cyan]")
