@@ -35,7 +35,8 @@ def cli():
 @click.option('--token', help='Authentication token')
 @click.option('--port', default=6001, help='Remote port')
 @click.option('--user', default='colab', help='SSH username')
-def setup(mode, server, token, port, user):
+@click.option('-f', '--force', is_flag=True, help='Force regenerate token')
+def setup(mode, server, token, port, user, force):
     """Interactive setup wizard"""
     console.print(Panel.fit("🚀 FRP Tunnel Setup", style="bold blue"))
     
@@ -48,11 +49,11 @@ def setup(mode, server, token, port, user):
             mode = click.prompt('Setup mode', type=click.Choice(['server', 'client']))
     
     if mode == 'server':
-        setup_server()
+        setup_server(force)
     elif mode in ['client', 'colab']:
         setup_client(mode, server, token, port, user)
 
-def setup_server():
+def setup_server(force=False):
     """Setup FRP server"""
     console.print("🖥️  Setting up FRP server...")
     
@@ -60,24 +61,18 @@ def setup_server():
     
     # Check if config exists and get existing token
     existing_config = config_manager.get_server_config()
-    existing_token = existing_config.get('token', '')
+    existing_token = existing_config.get('common', {}).get('token', '') if existing_config else ''
     
-    if existing_token:
-        console.print(f"🔑 Found existing token: [bold yellow]{existing_token}[/bold yellow]")
-        use_existing = click.confirm('Use existing token?', default=True)
-        if use_existing:
-            token = existing_token
-        else:
-            token = click.prompt('Authentication token (empty to generate)', default='', show_default=False)
-            if not token:
-                import secrets
-                token = f"frp_{secrets.token_hex(16)}"
-                console.print(f"🔑 Generated token: [bold yellow]{token}[/bold yellow]")
+    if existing_token and not force:
+        console.print(f"🔑 Using existing token: [bold yellow]{existing_token}[/bold yellow]")
+        console.print("💡 Use -f to force regenerate token")
+        token = existing_token
     else:
-        token = click.prompt('Authentication token (empty to generate)', default='', show_default=False)
-        if not token:
-            import secrets
-            token = f"frp_{secrets.token_hex(16)}"
+        import secrets
+        token = f"frp_{secrets.token_hex(16)}"
+        if force and existing_token:
+            console.print(f"🔄 Regenerated token: [bold yellow]{token}[/bold yellow]")
+        else:
             console.print(f"🔑 Generated token: [bold yellow]{token}[/bold yellow]")
     
     # Install server binary
