@@ -30,18 +30,18 @@ jobs:
           Remove-Item -Force c:\secpol.cfg -Confirm:$false
 
           # 3. 创建 Admin 用户
-          # 使用一个全新的强密码，且不包含 "cicy" 字样
+          # 使用一个全新的强密码，且不包含 "admin" 字样
           $password = "MySecurePass_2024!"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
           
           # 如果用户存在则先删除，确保环境干净
-          if (Get-LocalUser -Name "cicy" -ErrorAction SilentlyContinue) {
-              Remove-LocalUser -Name "cicy"
+          if (Get-LocalUser -Name "admin" -ErrorAction SilentlyContinue) {
+              Remove-LocalUser -Name "admin"
           }
           
           # 创建用户
-          New-LocalUser -Name "cicy" -Password $securePass -AccountNeverExpires -PasswordNeverExpires
-          Add-LocalGroupMember -Group "Administrators" -Member "cicy"
+          New-LocalUser -Name "admin" -Password $securePass -AccountNeverExpires -PasswordNeverExpires
+          Add-LocalGroupMember -Group "Administrators" -Member "admin"
           
           # 4. 配置 SSH 公钥 (针对管理员组)
           $authKeyPath = "C:\ProgramData\ssh\administrators_authorized_keys"
@@ -90,6 +90,14 @@ jobs:
           Write-Host "FRP Tunnel started."
         shell: powershell
       
+      - name: Show connection info
+        run: |
+          Write-Host "=========================================="
+          Write-Host "SSH Command: ssh -p 6003 admin@34.102.78.219"
+          Write-Host "Password:    MySecurePass_2024!"
+          Write-Host "=========================================="
+        shell: powershell
+      
       - name: Keep alive
         run: |
           Write-Host "Keeping alive for 6 hours..."
@@ -100,3 +108,4 @@ jobs:
             Write-Host "Alive: $($sw.Elapsed.ToString('hh\:mm\:ss'))"
           }
         shell: powershell
+        
