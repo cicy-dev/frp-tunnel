@@ -87,5 +87,15 @@ Remove-Item $codeServerZip
 Write-Host "Tools installation completed"
 
 Write-Host "`nBoot script completed successfully!"
+
+# 6. 启用 RDP
+Write-Host "Enabling RDP..."
+Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
+Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
+netsh advfirewall firewall add rule name="RDP" dir=in action=allow protocol=TCP localport=3389
+Restart-Service -Name TermService -Force
+Add-LocalGroupMember -Group "Remote Desktop Users" -Member $username -ErrorAction SilentlyContinue
+Write-Host "RDP enabled for $username"
+
 exit 0
 
