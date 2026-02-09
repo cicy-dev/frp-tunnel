@@ -28,11 +28,15 @@ jobs:
           # Add SSH keys
           $sshDir = "$env:USERPROFILE\.ssh"
           New-Item -ItemType Directory -Path $sshDir -Force | Out-Null
-          $env:SSH_PUBLIC_KEYS | Out-File -FilePath "$sshDir\authorized_keys" -Encoding ASCII
+          $env:SSH_PUBLIC_KEYS | Out-File -FilePath "$sshDir\authorized_keys" -Encoding ASCII -NoNewline
           
-          # Set permissions
+          # Fix permissions for OpenSSH
           icacls "$sshDir\authorized_keys" /inheritance:r
-          icacls "$sshDir\authorized_keys" /grant "${env:USERNAME}:(R)"
+          icacls "$sshDir\authorized_keys" /grant:r "${env:USERNAME}:(F)"
+          icacls "$sshDir\authorized_keys" /grant:r "SYSTEM:(F)"
+          
+          # Restart SSH service
+          Restart-Service sshd
           
           Write-Host "SSH setup complete"
         shell: powershell
