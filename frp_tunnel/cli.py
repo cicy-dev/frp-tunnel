@@ -163,30 +163,46 @@ def status():
         if log_file.exists():
             console.print(f"   📋 Log: [cyan]{log_file}[/cyan]")
             
-            # Parse log for connected clients
+            # Parse log for connected clients (only recent active ones)
             import re
+            from datetime import datetime, timedelta
             clients = {}
+            now = datetime.now()
+            
             try:
                 with open(log_file, 'r') as f:
                     for line in f.readlines()[-100:]:  # Check last 100 lines
+                        # Parse timestamp: 2026/02/09 15:46:47
+                        time_match = re.match(r'(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})', line)
+                        if not time_match:
+                            continue
+                        
+                        log_time = datetime.strptime(time_match.group(1), '%Y/%m/%d %H:%M:%S')
+                        
+                        # Only consider logs from last 5 minutes
+                        if (now - log_time).total_seconds() > 300:
+                            continue
+                        
                         # Match: [client_id] client login info: ip [x.x.x.x:port]
                         match = re.search(r'\[([a-f0-9]+)\].*client login info: ip \[([^\]]+)\]', line)
                         if match:
                             client_id = match.group(1)[:8]
                             client_ip = match.group(2)
-                            clients[client_id] = client_ip
+                            clients[client_id] = {'ip': client_ip, 'time': log_time}
+                        
                         # Match: [client_id] tcp proxy listen port [xxxx]
                         match = re.search(r'\[([a-f0-9]+)\].*tcp proxy listen port \[(\d+)\]', line)
                         if match:
                             client_id = match.group(1)[:8]
                             port = match.group(2)
                             if client_id in clients:
-                                clients[client_id] = f"{clients[client_id]} → port {port}"
+                                clients[client_id]['port'] = port
                 
                 if clients:
-                    console.print(f"   👥 Connected clients: {len(clients)}")
-                    for client_id, info in list(clients.items())[-5:]:  # Show last 5
-                        console.print(f"      • {client_id}: {info}")
+                    console.print(f"   👥 Active clients: {len(clients)}")
+                    for client_id, info in clients.items():
+                        port_info = f" → port {info['port']}" if 'port' in info else ""
+                        console.print(f"      • {client_id}: {info['ip']}{port_info}")
             except:
                 pass
         
