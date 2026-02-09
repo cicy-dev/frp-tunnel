@@ -1,4 +1,4 @@
-name: Windows SSH Setup (Final)
+name: Windows SSH Setup (Push Only)
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 env:
   SSH_USER: "admin"
   SSH_PASS: "Auth_Key_Only_2026!#"
-  DEFAULT_DIR: "D:/projects"  # 使用正斜杠避免 YAML 转义报错
+  DEFAULT_DIR: "D:/projects"
   FRP_PORT: "6003"
   FRP_SERVER: "34.102.78.219"
   PUBKEY_1: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDyMqv3jOo/FBGsvvCAli5yM15qNUMEcLkB+GripAUh4ng16WxE0SLXBl6EKE9YuVDjk1HSBvm41CV4nHpXukJQQmv1NJbwTr/ZgI2swG/SRQ+jDceiQcfGTRzW0fIvHzdYXiBKSHrH0ChC7u/aRwmubtxKv9XZ1AZn7PtphKn4r3oqlv8xNDwIlVqRR8ycza3x4ZYfpSe9JNrLCxY9rnk2V1z5C4SPgo70QXPnWNvPIMKLnlcoDXGy1049rZGsye3oi3WSwAVHoBhQbNxBt7iu1AZtB8nMd66SAfjeWURSzCZIAmJqX6XKsbGC11GOl+RRz2ZBvG1b3qiV1wDQ1x6p ton@jacks-MacBook-Pro.local"
@@ -19,31 +19,26 @@ jobs:
     runs-on: windows-latest
     
     steps:
-      - name: Install OpenSSH and Prepare Workspace
-        env:
-          FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
+      - name: Configure Windows SSH
         run: |
-          # 1. 安装 OpenSSH 服务
+          # 1. 安装 OpenSSH Server
           Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
           Start-Service sshd
           Set-Service -Name sshd -StartupType 'Automatic'
           
-          # 2. 创建 D 盘项目目录
-          if (!(Test-Path $env:DEFAULT_DIR)) {
-              New-Item -ItemType Directory -Force -Path $env:DEFAULT_DIR
-          }
+          # 2. 准备项目目录
+          if (!(Test-Path $env:DEFAULT_DIR)) { New-Item -ItemType Directory -Force -Path $env:DEFAULT_DIR }
 
-          # 3. 创建管理用户 (禁用密码复杂度报错)
+          # 3. 创建管理用户 (仅内部使用密码)
           $securePass = ConvertTo-SecureString $env:SSH_PASS -AsPlainText -Force
           if (Get-LocalUser -Name $env:SSH_USER -ErrorAction SilentlyContinue) { Remove-LocalUser -Name $env:SSH_USER }
           New-LocalUser -Name $env:SSH_USER -Password $securePass -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member $env:SSH_USER
           
-          # 4. 设置公钥 (针对管理员组)
+          # 4. 配置 SSH 公钥权限 (Administrators 组专用路径)
           $keyFile = "C:/ProgramData/ssh/administrators_authorized_keys"
           "$env:PUBKEY_1`n$env:PUBKEY_2" | Out-File -FilePath $keyFile -Encoding ascii
           
-          # 5. 设置权限 (必须执行，否则 SSH 会拒绝公钥登录)
           $acl = Get-Acl $keyFile
           $acl.SetAccessRuleProtection($true, $false)
           $admins = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::BuiltinAdministratorsSid, $null)
@@ -53,7 +48,7 @@ jobs:
           $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($system, "FullControl", "Allow")))
           Set-Acl $keyFile $acl
           
-          # 6. 配置 sshd_config：完全禁止密码
+          # 5. 配置 sshd_config (禁用密码，强制公钥)
           $config = "C:/ProgramData/ssh/sshd_config"
           (Get-Content $config) | Where-Object { 
             $_ -notmatch "^PasswordAuthentication" -and 
@@ -67,18 +62,37 @@ jobs:
           Add-Content $config "`nMatch Group administrators"
           Add-Content $config "`n    AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys"
           
-          # 7. 核心：设置登录后的默认起始目录为 D:/projects
+          # 6. 设置默认登录路径
           New-ItemProperty -Path "HKLM:/SOFTWARE/OpenSSH" -Name "DefaultShell" -Value "powershell.exe" -PropertyType String -Force
-          # /K 表示执行命令后保持 Shell 开启
           New-ItemProperty -Path "HKLM:/SOFTWARE/OpenSSH" -Name "DefaultShellCommandOption" -Value "/K cd /d $env:DEFAULT_DIR" -PropertyType String -Force
 
           Restart-Service sshd
         shell: powershell
 
-      - name: Start FRP Tunnel
+      - name: Install & Launch FRP
         env:
           FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
         run: |
           pip install frp-tunnel
-          # 异步启动隧道
-          Start-Process -NoNewWindow frp-tunnel -
+          # 使用全闭包方式启动，解决参数解析报错
+          $frpArgs = "client --server $env:FRP_SERVER --token $env:FRP_TOKEN --port $env:FRP_PORT"
+          Start-Process "frp-tunnel" -ArgumentList $frpArgs -NoNewWindow
+          Start-Sleep -Seconds 10
+        shell: powershell
+
+      - name: SSH Ready Info
+        run: |
+          Write-Host "--- SSH Connection Info ---"
+          Write-Host "Target: ssh -p $env:FRP_PORT ${env:SSH_USER}@${env:FRP_SERVER}"
+          Write-Host "Root:   $env:DEFAULT_DIR"
+          Write-Host "---------------------------"
+        shell: powershell
+
+      - name: Keep Alive
+        run: |
+          $sw = [System.Diagnostics.Stopwatch]::StartNew()
+          while ($sw.Elapsed.TotalHours -lt 6) {
+            Start-Sleep -Seconds 60
+            Write-Host "Runner active: $($sw.Elapsed.ToString('hh\:mm\:ss'))"
+          }
+        shell: powershell
