@@ -1,0 +1,51 @@
+name: Windows SSH Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-ssh:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Setup OpenSSH
+        env:
+          SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+          FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
+        run: |
+          # Install OpenSSH Server
+          Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+          
+          # Start service
+          Start-Service sshd
+          Set-Service -Name sshd -StartupType 'Automatic'
+          
+          # Configure firewall
+          if (!(Get-NetFirewallRule -Name "OpenSSH-Server-In-TCP" -ErrorAction SilentlyContinue)) {
+              New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
+          }
+          
+          # Add SSH key
+          $sshDir = "$env:USERPROFILE\.ssh"
+          New-Item -ItemType Directory -Path $sshDir -Force | Out-Null
+          Add-Content -Path "$sshDir\authorized_keys" -Value $env:SSH_PUBLIC_KEY
+          
+          # Set permissions
+          icacls "$sshDir\authorized_keys" /inheritance:r
+          icacls "$sshDir\authorized_keys" /grant:r "$env:USERNAME:(R)"
+          
+          Write-Host "✅ SSH setup complete"
+        shell: powershell
+      
+      - name: Install FRP Tunnel
+        run: |
+          pip install frp-tunnel
+          Write-Host "✅ FRP Tunnel installed"
+        shell: powershell
+      
+      - name: Show connection info
+        run: |
+          Write-Host "📋 Connection ready!"
+          Write-Host "Username: $env:USERNAME"
+          Write-Host "Use: frp-tunnel client --server YOUR_IP --token YOUR_TOKEN --port 6003"
+        shell: powershell
