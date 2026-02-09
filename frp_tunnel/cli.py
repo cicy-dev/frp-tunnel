@@ -184,8 +184,33 @@ def install():
 @click.option('--token', help='Authentication token')
 @click.option('--port', type=int, default=6001, help='Remote port for SSH')
 @click.option('--local-port', type=int, default=22, help='Local SSH port')
-def start(component, server, token, port, local_port):
+@click.option('-d', '--daemon', is_flag=True, help='Run in background (daemon mode)')
+def start(component, server, token, port, local_port, daemon):
     """Start FRP server or client"""
+    if daemon:
+        import subprocess
+        import sys
+        
+        # Build command without --daemon flag
+        cmd = [sys.executable, '-m', 'frp_tunnel.cli', 'start', '--component', component]
+        if server:
+            cmd.extend(['--server', server])
+        if token:
+            cmd.extend(['--token', token])
+        if port != 6001:
+            cmd.extend(['--port', str(port)])
+        if local_port != 22:
+            cmd.extend(['--local-port', str(local_port)])
+        
+        # Start in background
+        if sys.platform == 'win32':
+            subprocess.Popen(cmd, creationflags=subprocess.CREATE_NO_WINDOW)
+        else:
+            subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        
+        console.print("✅ Started in daemon mode")
+        return
+    
     if component in ['server', 'both']:
         config = config_manager.get_server_config()
         
