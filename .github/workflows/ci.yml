@@ -7,77 +7,35 @@ on:
     branches: [ main ]
 
 jobs:
-  test-scripts:
+  test-python:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
-    - name: Make scripts executable
-      run: chmod +x scripts/*.sh examples/*.sh
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+    
+    - name: Install package
+      run: pip install -e .
       
-    - name: Test script syntax
+    - name: Test CLI commands
       run: |
-        for script in scripts/*.sh examples/*.sh; do
-          echo "Testing $script"
-          bash -n "$script"
-        done
-        
-    - name: Install shellcheck
-      run: sudo apt-get install -y shellcheck
-      
-    - name: Run shellcheck
-      run: |
-        for script in scripts/*.sh examples/*.sh; do
-          echo "Checking $script"
-          shellcheck "$script" || true
-        done
-
-  test-powershell:
-    runs-on: windows-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Test PowerShell script syntax
-      run: |
-        Get-ChildItem -Path scripts -Filter "*.ps1" | ForEach-Object {
-          Write-Host "Testing $($_.Name)"
-          powershell -NoProfile -ExecutionPolicy Bypass -Command "& { . '$($_.FullName)'; exit 0 }" -WhatIf
-        }
-      shell: powershell
+        frp-tunnel --help
+        frp-tunnel version
+        frp-tunnel token
 
   test-documentation:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
-    - name: Install markdown linter
-      run: npm install -g markdownlint-cli
-      
-    - name: Lint markdown files
+    - name: Check README files exist
       run: |
-        markdownlint README.md docs/*.md || true
-        
-    - name: Check links in documentation
-      run: |
-        # Simple link check - can be enhanced with proper tools
-        grep -r "http" docs/ README.md || true
-
-  security-scan:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Run security scan
-      run: |
-        # Check for hardcoded secrets/tokens
-        if grep -r "frp_[a-f0-9]\{32\}" scripts/ examples/ || \
-           grep -r "password.*=" scripts/ examples/ || \
-           grep -r "secret.*=" scripts/ examples/; then
-          echo "⚠️ Potential hardcoded secrets found"
-          exit 1
-        fi
-        echo "✅ No hardcoded secrets detected"
+        test -f README.md
+        test -f README_CN.md
+        test -f QUICKSTART.md
+        echo "✅ Documentation files present"

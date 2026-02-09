@@ -6,7 +6,8 @@ set -e
 echo "🚀 一键发布 frp-tunnel 到 PyPI"
 echo "=============================="
 
-cd /home/w3c_offical/projects/frp-tunnel
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # 检查是否在 GitHub Actions 环境
 if [ -n "$GITHUB_ACTIONS" ]; then
@@ -47,7 +48,6 @@ password = $TEST_PYPI_TOKEN
 EOF
         chmod 600 ~/.pypirc
         echo "✅ PyPI 令牌已保存"
-        
         # 设置 GitHub secrets
         echo ""
         echo "🔐 设置 GitHub secrets..."
