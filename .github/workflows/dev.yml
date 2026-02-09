@@ -88,17 +88,24 @@ jobs:
           # 下载 FRP 二进制文件
           python -c "from frp_tunnel.cli import download_frp; download_frp()"
           
-          Write-Host "Starting FRP client: SSH(6003), RDP(6004), MCP(8101->6005)"
-          
-          # 直接运行 frpc（前台运行，阻塞 10 分钟）
+          # 使用 PowerShell Job 在后台运行 frpc.exe
           $frpcExe = "$env:USERPROFILE\.frp-tunnel\bin\frpc.exe"
+          $job = Start-Job -ScriptBlock {
+            param($exe, $config)
+            & $exe -c $config
+          } -ArgumentList $frpcExe, $configDest
           
-          # 使用 timeout 命令运行 10 分钟
-          $timeout = 600  # 10 minutes in seconds
-          $process = Start-Process -NoNewWindow -PassThru -FilePath $frpcExe -ArgumentList "-c `"$configDest`""
+          Write-Host "FRP client started in background job (ID: $($job.Id))"
+          Start-Sleep -Seconds 5
           
-          Write-Host "FRP client running (PID: $($process.Id)), keeping alive for 10 minutes..."
-          Start-Sleep -Seconds $timeout
+          # Keep alive loop - 只负责 sleep，不做其他事
+          Write-Host "Keeping alive for 10 minutes..."
+          $timeout = 600
+          for ($i = 0; $i -lt $timeout; $i += 60) {
+            Start-Sleep -Seconds 60
+            $elapsed = [math]::Min($i + 60, $timeout)
+            Write-Host "Elapsed: $elapsed / $timeout seconds"
+          }
           
           Write-Host "Session completed."
         shell: powershell
