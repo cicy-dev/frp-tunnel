@@ -55,7 +55,7 @@ Add-Content $sshdConfig "       AuthorizedKeysFile __PROGRAMDATA__/ssh/administr
 
 # 配置用户 bash profile 自动切换目录
 $bashProfile = "C:\Users\$username\.bash_profile"
-"cd /d/projects" | Out-File -FilePath $bashProfile -Encoding ascii
+"cd /d/projects" | Out-File -FilePath $bashProfile -Encoding UTF8 -NoNewline
 
 Restart-Service sshd
 Write-Host "SSH setup complete!"
