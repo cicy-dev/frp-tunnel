@@ -235,6 +235,23 @@ def server_status():
         frps_bin = BIN_DIR / ('frps.exe' if sys.platform == 'win32' else 'frps')
         if frps_bin.exists():
             console.print(f"   🔧 Binary: [cyan]{frps_bin}[/cyan]")
+        
+        # Show active clients
+        try:
+            if sys.platform == 'win32':
+                result = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq frpc.exe'], 
+                                      capture_output=True, text=True)
+                count = result.stdout.count('frpc.exe')
+            else:
+                result = subprocess.run(['pgrep', '-c', 'frpc'], capture_output=True, text=True)
+                count = int(result.stdout.strip()) if result.returncode == 0 else 0
+        except:
+            count = 0
+        
+        if count > 0:
+            console.print(f"   👥 Active clients: [green]{count}[/green]")
+        else:
+            console.print(f"   👥 Active clients: [yellow]0[/yellow]")
     else:
         console.print("🖥️  Server: [red]Stopped[/red]")
     console.print()
