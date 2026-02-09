@@ -249,8 +249,8 @@ def install():
 @click.option('--component', type=click.Choice(['server', 'client', 'both']), required=True, help='Component to start')
 @click.option('--server', help='Server address (for client mode)')
 @click.option('--token', help='Authentication token')
-@click.option('--port', type=int, default=6001, help='Remote port for SSH')
-@click.option('--local-port', type=int, default=22, help='Local SSH port')
+@click.option('--port', type=int, help='Remote port for SSH')
+@click.option('--local-port', type=int, help='Local SSH port')
 @click.option('-d', '--daemon', is_flag=True, help='Run in background (daemon mode)')
 @click.option('-f', '--force', is_flag=True, help='Force restart if already running')
 def start(component, server, token, port, local_port, daemon, force):
@@ -273,9 +273,9 @@ def start(component, server, token, port, local_port, daemon, force):
             cmd.extend(['--server', server])
         if token:
             cmd.extend(['--token', token])
-        if port != 6001:
+        if port:
             cmd.extend(['--port', str(port)])
-        if local_port != 22:
+        if local_port:
             cmd.extend(['--local-port', str(local_port)])
         if force:
             cmd.append('--force')
@@ -332,8 +332,8 @@ def start(component, server, token, port, local_port, daemon, force):
     if component in ['client', 'both']:
         config = config_manager.get_client_config()
         
-        # Override with command line args if provided
-        if server or token or port != 6001 or local_port != 22:
+        # Override with command line args if provided (only if explicitly specified)
+        if server or token or port or local_port:
             if not config:
                 config = {
                     'common': {
@@ -342,8 +342,8 @@ def start(component, server, token, port, local_port, daemon, force):
                     'ssh': {
                         'type': 'tcp',
                         'local_ip': '127.0.0.1',
-                        'local_port': local_port,
-                        'remote_port': port
+                        'local_port': local_port or 22,
+                        'remote_port': port or 6001
                     }
                 }
             else:
@@ -356,9 +356,9 @@ def start(component, server, token, port, local_port, daemon, force):
                 config['common']['server_addr'] = server
             if token:
                 config['common']['token'] = token
-            if port != 6001:
+            if port:
                 config['ssh']['remote_port'] = port
-            if local_port != 22:
+            if local_port:
                 config['ssh']['local_port'] = local_port
         
         if not config:
