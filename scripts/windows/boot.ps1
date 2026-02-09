@@ -21,6 +21,14 @@ New-LocalUser -Name $username -Password $securePass -AccountNeverExpires -Passwo
 Add-LocalGroupMember -Group "Administrators" -Member $username
 Write-Host "Created user: $username"
 
+# 创建 D:\projects 目录
+New-Item -ItemType Directory -Path "D:\projects" -Force | Out-Null
+
+# 配置用户 PowerShell Profile 自动切换到 D:\projects
+$profilePath = "C:\Users\$username\Documents\WindowsPowerShell"
+New-Item -ItemType Directory -Path $profilePath -Force | Out-Null
+"Set-Location D:\projects" | Out-File -FilePath "$profilePath\profile.ps1" -Encoding UTF8
+
 # 3. 配置 SSH 公钥（管理员组）
 Write-Host "Configuring SSH keys..."
 $authKeyPath = "C:\ProgramData\ssh\administrators_authorized_keys"
