@@ -22,12 +22,13 @@ Add-LocalGroupMember -Group "Administrators" -Member $username
 Write-Host "Created user: $username"
 
 # 创建 D:\projects 目录
-New-Item -ItemType Directory -Path "D:\projects" -Force | Out-Null
-
-# 配置用户 PowerShell Profile 自动切换到 D:\projects
-$profilePath = "C:\Users\$username\Documents\WindowsPowerShell"
-New-Item -ItemType Directory -Path $profilePath -Force | Out-Null
-"Set-Location D:\projects" | Out-File -FilePath "$profilePath\profile.ps1" -Encoding UTF8
+Write-Host "Creating D:\projects directory..."
+if (-not (Test-Path "D:\projects")) {
+    New-Item -ItemType Directory -Path "D:\projects" -Force | Out-Null
+    Write-Host "D:\projects created"
+} else {
+    Write-Host "D:\projects already exists"
+}
 
 # 3. 配置 SSH 公钥（管理员组）
 Write-Host "Configuring SSH keys..."
@@ -54,26 +55,6 @@ Add-Content $sshdConfig "       AuthorizedKeysFile __PROGRAMDATA__/ssh/administr
 
 Restart-Service sshd
 Write-Host "SSH setup complete!"
-
-# 5. 检查并安装 Electron
-Write-Host "Checking Electron..."
-$electronInstalled = npm list -g electron 2>$null
-if (-not $electronInstalled) {
-    Write-Host "Installing Electron globally..."
-    npm install -g electron
-} else {
-    Write-Host "Electron already installed"
-}
-
-# 6. 检查并安装 OpenCode AI
-Write-Host "Checking OpenCode AI..."
-$opencodeInstalled = npm list -g opencode-ai 2>$null
-if (-not $opencodeInstalled) {
-    Write-Host "Installing OpenCode AI globally..."
-    npm install -g opencode-ai
-} else {
-    Write-Host "OpenCode AI already installed"
-}
 
 Write-Host "`nBoot script completed successfully!"
 exit 0
