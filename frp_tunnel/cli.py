@@ -240,6 +240,9 @@ def show_status():
         log_file = DATA_DIR / 'frps.log'
         if log_file.exists():
             console.print(f"   📋 Log: [cyan]{log_file}[/cyan]")
+        frps_bin = BIN_DIR / ('frps.exe' if sys.platform == 'win32' else 'frps')
+        if frps_bin.exists():
+            console.print(f"   🔧 Binary: [cyan]{frps_bin}[/cyan]")
     else:
         console.print("🖥️  Server: [red]Stopped[/red]")
     
@@ -250,6 +253,9 @@ def show_status():
         log_file = DATA_DIR / 'frpc.log'
         if log_file.exists():
             console.print(f"   📋 Log: [cyan]{log_file}[/cyan]")
+        frpc_bin = BIN_DIR / ('frpc.exe' if sys.platform == 'win32' else 'frpc')
+        if frpc_bin.exists():
+            console.print(f"   🔧 Binary: [cyan]{frpc_bin}[/cyan]")
     else:
         console.print("📱 Client: [red]Disconnected[/red]")
     
