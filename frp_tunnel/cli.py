@@ -146,12 +146,47 @@ def status():
     if status_info['server_running']:
         console.print("🖥️  Server: [green]Running[/green]")
         console.print(f"   📄 Config: [cyan]{config_manager.server_config_path}[/cyan]")
+        
+        # Show connected clients from server log
+        log_file = config_manager.config_dir / 'frps.log'
+        if log_file.exists():
+            console.print(f"   📋 Log: [cyan]{log_file}[/cyan]")
+            
+            # Parse log for connected clients
+            import re
+            clients = {}
+            try:
+                with open(log_file, 'r') as f:
+                    for line in f.readlines()[-100:]:  # Check last 100 lines
+                        # Match: [client_id] client login info: ip [x.x.x.x:port]
+                        match = re.search(r'\[([a-f0-9]+)\].*client login info: ip \[([^\]]+)\]', line)
+                        if match:
+                            client_id = match.group(1)[:8]
+                            client_ip = match.group(2)
+                            clients[client_id] = client_ip
+                        # Match: [client_id] tcp proxy listen port [xxxx]
+                        match = re.search(r'\[([a-f0-9]+)\].*tcp proxy listen port \[(\d+)\]', line)
+                        if match:
+                            client_id = match.group(1)[:8]
+                            port = match.group(2)
+                            if client_id in clients:
+                                clients[client_id] = f"{clients[client_id]} → port {port}"
+                
+                if clients:
+                    console.print(f"   👥 Connected clients: {len(clients)}")
+                    for client_id, info in list(clients.items())[-5:]:  # Show last 5
+                        console.print(f"      • {client_id}: {info}")
+            except:
+                pass
     else:
         console.print("🖥️  Server: [red]Stopped[/red]")
     
     if status_info['client_running']:
         console.print("📱 Client: [green]Connected[/green]")
         console.print(f"   📄 Config: [cyan]{config_manager.client_config_path}[/cyan]")
+        log_file = config_manager.config_dir / 'frpc.log'
+        if log_file.exists():
+            console.print(f"   📋 Log: [cyan]{log_file}[/cyan]")
     else:
         console.print("📱 Client: [red]Disconnected[/red]")
 
