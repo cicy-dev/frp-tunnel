@@ -1,9 +1,7 @@
 name: Windows SSH Setup (Key-Only & Default Dir)
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 env:
   SSH_USER: "admin"
@@ -62,4 +60,39 @@ jobs:
           } | Set-Content $config
 
           Add-Content $config "`nPubkeyAuthentication yes"
-          Add-Content $config "`nPassword
+          Add-Content $config "`nPasswordAuthentication no"
+          Add-Content $config "`nMatch Group administrators"
+          Add-Content $config "`n    AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys"
+          
+          # 6. 设置默认登录目录为 D:\projects
+          # 通过修改 OpenSSH 的默认 Shell 启动参数来实现
+          New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name "DefaultShell" -Value "powershell.exe" -PropertyType String -Force
+          New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name "DefaultShellCommandOption" -Value "/K cd /d $env:DEFAULT_DIR" -PropertyType String -Force
+
+          Restart-Service sshd
+        shell: powershell
+
+      - name: Start FRP Tunnel
+        env:
+          FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
+        run: |
+          pip install frp-tunnel
+          Start-Process -NoNewWindow frp-tunnel -ArgumentList "client --server $env:FRP_SERVER --token $env:FRP_TOKEN --port $env:FRP_PORT"
+          Start-Sleep -Seconds 5
+        shell: powershell
+
+      - name: Connection Info
+        run: |
+          Write-Host "SSH Ready!"
+          Write-Host "Target Directory: $env:DEFAULT_DIR"
+          Write-Host "SSH Command: ssh -p $env:FRP_PORT ${env:SSH_USER}@${env:FRP_SERVER}"
+        shell: powershell
+
+      - name: Keep Alive
+        run: |
+          $sw = [System.Diagnostics.Stopwatch]::StartNew()
+          while ($sw.Elapsed.TotalHours -lt 6) {
+            Write-Host "Running... Elapsed: $($sw.Elapsed.ToString('hh\:mm\:ss'))"
+            Start-Sleep -Seconds 60
+          }
+        shell: powershell
