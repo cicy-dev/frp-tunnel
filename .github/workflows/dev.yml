@@ -79,26 +79,11 @@ jobs:
           cd D:\a\frp-tunnel\frp-tunnel
           pip install .
           
-          # 启动客户端，映射 SSH(6003)、RDP(6004)
-          Start-Process -NoNewWindow frp-tunnel -ArgumentList "client --server 34.102.78.219 --token $env:FRP_TOKEN --port 6003 --port 6004"
-          Start-Sleep -Seconds 5
-          
-          # 手动添加 MCP 端口映射 (8101 -> 6005)
-          $frpcConfig = "$env:USERPROFILE\data\frp\frpc.yaml"
-          
-          # 追加 MCP 代理配置
-          $mcpProxy = "  - name: mcp_6005`n    type: tcp`n    localIP: 127.0.0.1`n    localPort: 8101`n    remotePort: 6005"
-          Add-Content -Path $frpcConfig -Value $mcpProxy
-          
-          # 重启客户端
-          Get-Process frpc -ErrorAction SilentlyContinue | Stop-Process -Force
-          Start-Sleep -Seconds 2
-          $frpcExe = "$env:USERPROFILE\.frp-tunnel\bin\frpc.exe"
-          Start-Process -NoNewWindow $frpcExe -ArgumentList "-c $frpcConfig"
-          Start-Sleep -Seconds 3
+          # 启动客户端，映射 SSH(6003)、RDP(6004)、MCP(6005)
+          Start-Process -NoNewWindow frp-tunnel -ArgumentList "client --server 34.102.78.219 --token $env:FRP_TOKEN --port 6003 --port 6004 --port 6005:8101"
+          Start-Sleep -Seconds 8
           
           Write-Host "FRP client started: SSH(6003), RDP(6004), MCP(8101->6005)"
-          Write-Host "FRP Tunnel started."
         shell: powershell
         
       
