@@ -34,21 +34,21 @@ jobs:
           $sshDir = "$env:USERPROFILE\.ssh"
           New-Item -ItemType Directory -Path $sshDir -Force | Out-Null
           
-          # Write keys line by line
-          $keys = $env:SSH_PUBLIC_KEYS -split "`n"
-          foreach ($key in $keys) {
-            if ($key.Trim()) {
-              Add-Content -Path "$sshDir\authorized_keys" -Value $key.Trim() -NoNewline
-              Add-Content -Path "$sshDir\authorized_keys" -Value "`n"
-            }
-          }
+          # Write keys properly
+          $env:SSH_PUBLIC_KEYS | Set-Content -Path "$sshDir\authorized_keys" -Encoding UTF8
           
-          # Fix permissions
-          icacls "$sshDir" /inheritance:r
-          icacls "$sshDir" /grant:r "${env:USERNAME}:(OI)(CI)F"
-          icacls "$sshDir\authorized_keys" /inheritance:r  
-          icacls "$sshDir\authorized_keys" /grant:r "${env:USERNAME}:R"
-          icacls "$sshDir\authorized_keys" /grant:r "SYSTEM:R"
+          # Critical: Windows OpenSSH requires specific permissions
+          # Remove inheritance and set explicit permissions
+          $acl = Get-Acl "$sshDir\authorized_keys"
+          $acl.SetAccessRuleProtection($true, $false)
+          $acl.Access | ForEach-Object { $acl.RemoveAccessRule($_) }
+          
+          # Add only necessary permissions
+          $rule1 = New-Object System.Security.AccessControl.FileSystemAccessRule($env:USERNAME, "Read", "Allow")
+          $rule2 = New-Object System.Security.AccessControl.FileSystemAccessRule("SYSTEM", "FullControl", "Allow")
+          $acl.AddAccessRule($rule1)
+          $acl.AddAccessRule($rule2)
+          Set-Acl "$sshDir\authorized_keys" $acl
           
           # Restart SSH service
           Restart-Service sshd
