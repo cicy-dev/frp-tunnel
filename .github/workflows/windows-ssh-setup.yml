@@ -107,7 +107,7 @@ jobs:
         run: |
           Write-Host "=========================================="
           Write-Host "SSH Command: ssh -p 6003 admin@34.102.78.219"
-          Write-Host "Password:    MySecurePass_2024!"
+          Write-Host "Auth: SSH Key Only (Password disabled)"
           Write-Host "=========================================="
         shell: powershell
       
