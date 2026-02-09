@@ -10,7 +10,6 @@ jobs:
     steps:
       - name: Setup OpenSSH
         env:
-          SSH_PUBLIC_KEYS: ${{ secrets.SSH_PUBLIC_KEYS }}
           FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
         run: |
           # Install OpenSSH Server
@@ -25,30 +24,18 @@ jobs:
               New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
           }
           
-          # Configure SSH
+          # Create admin user with password
+          $password = "1234"
+          $securePass = ConvertTo-SecureString $password -AsPlainText -Force
+          New-LocalUser -Name "admin" -Password $securePass -AccountNeverExpires -ErrorAction SilentlyContinue
+          Add-LocalGroupMember -Group "Administrators" -Member "admin" -ErrorAction SilentlyContinue
+          
+          Write-Host "Created user: admin | Password: $password"
+          
+          # Configure SSH for password auth
           $sshdConfig = "C:\ProgramData\ssh\sshd_config"
-          Add-Content -Path $sshdConfig -Value "`nPubkeyAuthentication yes"
-          Add-Content -Path $sshdConfig -Value "PasswordAuthentication no"
-          
-          # Add SSH keys
-          $sshDir = "$env:USERPROFILE\.ssh"
-          New-Item -ItemType Directory -Path $sshDir -Force | Out-Null
-          
-          # Write keys properly
-          $env:SSH_PUBLIC_KEYS | Set-Content -Path "$sshDir\authorized_keys" -Encoding UTF8
-          
-          # Critical: Windows OpenSSH requires specific permissions
-          # Remove inheritance and set explicit permissions
-          $acl = Get-Acl "$sshDir\authorized_keys"
-          $acl.SetAccessRuleProtection($true, $false)
-          $acl.Access | ForEach-Object { $acl.RemoveAccessRule($_) }
-          
-          # Add only necessary permissions
-          $rule1 = New-Object System.Security.AccessControl.FileSystemAccessRule($env:USERNAME, "Read", "Allow")
-          $rule2 = New-Object System.Security.AccessControl.FileSystemAccessRule("SYSTEM", "FullControl", "Allow")
-          $acl.AddAccessRule($rule1)
-          $acl.AddAccessRule($rule2)
-          Set-Acl "$sshDir\authorized_keys" $acl
+          (Get-Content $sshdConfig) -replace '#PasswordAuthentication yes', 'PasswordAuthentication yes' | Set-Content $sshdConfig
+          (Get-Content $sshdConfig) -replace 'PasswordAuthentication no', 'PasswordAuthentication yes' | Set-Content $sshdConfig
           
           # Restart SSH service
           Restart-Service sshd
@@ -68,8 +55,8 @@ jobs:
       - name: Show connection info
         run: |
           Write-Host "Connection ready!"
-          Write-Host "Username: $env:USERNAME"
-          Write-Host "SSH from server: ssh -p 6003 $env:USERNAME@34.102.78.219"
+          Write-Host "User: admin | Password: 1234"
+          Write-Host "SSH command: ssh -p 6003 admin@34.102.78.219"
           Write-Host ""
           Write-Host "Checking SSH service..."
           Get-Service sshd
