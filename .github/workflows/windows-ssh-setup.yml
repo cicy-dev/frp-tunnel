@@ -8,39 +8,50 @@ jobs:
     runs-on: windows-latest
     
     steps:
-      - name: Setup OpenSSH
+      - name: Setup OpenSSH & Keys
         env:
           FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
+          PUBLIC_KEY_1: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDyMqv3jOo/FBGsvvCAli5yM15qNUMEcLkB+GripAUh4ng16WxE0SLXBl6EKE9YuVDjk1HSBvm41CV4nHpXukJQQmv1NJbwTr/ZgI2swG/SRQ+jDceiQcfGTRzW0fIvHzdYXiBKSHrH0ChC7u/aRwmubtxKv9XZ1AZn7PtphKn4r3oqlv8xNDwIlVqRR8ycza3x4ZYfpSe9JNrLCxY9rnk2V1z5C4SPgo70QXPnWNvPIMKLnlcoDXGy1049rZGsye3oi3WSwAVHoBhQbNxBt7iu1AZtB8nMd66SAfjeWURSzCZIAmJqX6XKsbGC11GOl+RRz2ZBvG1b3qiV1wDQ1x6p ton@jacks-MacBook-Pro.local"
+          PUBLIC_KEY_2: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCxU7NlHEzlowtfTWU2dYpTS0B7af/3WI1wh+gB2JPqKLWYZnPvM5iB/AqfdJ/EH36zwcZWyXaGp4I7EnklmKMRiaaVr15tIx8Wvl8KlwQYStW56bGmRFTtpVYaMZ0CrhZFuJRVa29riEByJcBDdS7El4DVor3/fJ3LX/KKofcc0RH/E2bv5uvaI/vCuptPIFAkgquuACvqMP5gjtXaeI9Xbfuss8X2m2BxQxopYTOwtwn0ThZFDTaGydkQdPxhAMLqZ8BJWLKwim4UYB5fixL3v22vifYCdVTz56yxXoCklllcy8C27Jcg6MrSwurNaHBDGAJEHl7jkWcKx8FNPvf6C1ABtz/lQGLzSclHbsYnjwtkhT79n6BiTmv6wIOOm3JXc5GTkqwEOkoyuvHcbWSxCeYIMwUcN4Z6Vnw0gQraGvjKH9nwBvQFMWM8s9t8/jaKBbd12AUpbsq4dY3HuqjNzfPT8G73QIlsjCCN/iUZ3rEdoii4gBOeDZ55SEbkQXE= w3c_offical@gcp"
         run: |
           # Install OpenSSH Server
           Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
-          
-          # Start service
           Start-Service sshd
           Set-Service -Name sshd -StartupType 'Automatic'
           
-          # Configure firewall
-          if (!(Get-NetFirewallRule -Name "OpenSSH-Server-In-TCP" -ErrorAction SilentlyContinue)) {
-              New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
-          }
-          
-          # Create admin user with password
+          # Create admin user
           $password = "1234"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
-          New-LocalUser -Name "admin" -Password $securePass -AccountNeverExpires -ErrorAction SilentlyContinue
+          if (!(Get-LocalUser -Name "admin" -ErrorAction SilentlyContinue)) {
+              New-LocalUser -Name "admin" -Password $securePass -AccountNeverExpires
+          }
           Add-LocalGroupMember -Group "Administrators" -Member "admin" -ErrorAction SilentlyContinue
           
-          Write-Host "Created user: admin | Password: $password"
+          # Setup public keys for admin (administrators group)
+          $authKeyPath = "C:\ProgramData\ssh\administrators_authorized_keys"
+          "$env:PUBLIC_KEY_1`n$env:PUBLIC_KEY_2" | Out-File -FilePath $authKeyPath -Encoding ascii
           
-          # Configure SSH for password auth
+          # Set strict ACL permissions
+          $acl = Get-Acl $authKeyPath
+          $acl.SetAccessRuleProtection($true, $false)
+          $administrators = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::BuiltinAdministratorsSid, $null)
+          $system = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::LocalSystemSid, $null)
+          $acl.SetOwner($administrators)
+          $acl.SetAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($administrators, "FullControl", "Allow")))
+          $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($system, "FullControl", "Allow")))
+          Set-Acl $authKeyPath $acl
+          
+          # Configure sshd_config
           $sshdConfig = "C:\ProgramData\ssh\sshd_config"
           (Get-Content $sshdConfig) -replace '#PasswordAuthentication yes', 'PasswordAuthentication yes' | Set-Content $sshdConfig
-          (Get-Content $sshdConfig) -replace 'PasswordAuthentication no', 'PasswordAuthentication yes' | Set-Content $sshdConfig
+          (Get-Content $sshdConfig) -replace '#PubkeyAuthentication yes', 'PubkeyAuthentication yes' | Set-Content $sshdConfig
           
-          # Restart SSH service
+          if (!(Select-String -Path $sshdConfig -Pattern "Match Group administrators")) {
+              Add-Content $sshdConfig "`nMatch Group administrators`n    AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys"
+          }
+          
           Restart-Service sshd
-          
-          Write-Host "SSH setup complete"
+          Write-Host "SSH setup complete with password and pubkey auth"
         shell: powershell
       
       - name: Install FRP Tunnel
@@ -48,26 +59,23 @@ jobs:
           FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
         run: |
           pip install frp-tunnel
-          frp-tunnel client --server 34.102.78.219 --token $env:FRP_TOKEN --port 6003
-          Write-Host "FRP Tunnel connected on port 6003"
+          Start-Process -NoNewWindow frp-tunnel -ArgumentList "client --server 34.102.78.219 --token $env:FRP_TOKEN --port 6003"
+          Start-Sleep -Seconds 5
+          Write-Host "FRP Tunnel started on port 6003"
         shell: powershell
       
       - name: Show connection info
         run: |
-          Write-Host "Connection ready!"
-          Write-Host "User: admin | Password: 1234"
+          Write-Host "--- Connection Info ---"
+          Write-Host "User: admin"
+          Write-Host "Password: 1234"
           Write-Host "SSH command: ssh -p 6003 admin@34.102.78.219"
-          Write-Host ""
-          Write-Host "Checking SSH service..."
+          Write-Host "-----------------------"
           Get-Service sshd
-          Write-Host ""
-          Write-Host "Keeping connection alive for 5 minutes..."
         shell: powershell
       
-      - name: Keep alive for 5 minutes
+      - name: Keep alive
         run: |
-          for ($i=1; $i -le 300; $i++) {
-            Write-Host "[$i/30] Connection active..."
-            Start-Sleep -Seconds 10
-          }
+          Write-Host "Keeping alive for 5 minutes..."
+          Start-Sleep -Seconds 300
         shell: powershell
