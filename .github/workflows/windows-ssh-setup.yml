@@ -23,8 +23,14 @@ jobs:
           Start-Service sshd
           Set-Service -Name sshd -StartupType 'Automatic'
           
-          # Create admin user with strong password
-          $password = "Admin@123456"
+          # Disable password complexity temporarily
+          secedit /export /cfg C:\secpol.cfg
+          (Get-Content C:\secpol.cfg).replace("PasswordComplexity = 1", "PasswordComplexity = 0") | Out-File C:\secpol.cfg
+          secedit /configure /db C:\Windows\security\local.sdb /cfg C:\secpol.cfg /areas SECURITYPOLICY
+          Remove-Item -Force C:\secpol.cfg -Confirm:$false
+          
+          # Create admin user with password
+          $password = "Admin123456"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
           if (!(Get-LocalUser -Name "admin" -ErrorAction SilentlyContinue)) {
               New-LocalUser -Name "admin" -Password $securePass -AccountNeverExpires -PasswordNeverExpires
@@ -72,7 +78,7 @@ jobs:
         run: |
           Write-Host "--- Connection Info ---"
           Write-Host "User: admin"
-          Write-Host "Password: Admin@123456"
+          Write-Host "Password: Admin123456"
           Write-Host "SSH command: ssh -p 6003 admin@34.102.78.219"
           Write-Host "-----------------------"
           Get-Service sshd
