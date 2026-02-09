@@ -54,8 +54,8 @@ Issues = "https://github.com/cicy-dev/frp-tunnel/issues"
 Documentation = "https://github.com/cicy-dev/frp-tunnel/docs"
 
 [project.scripts]
+ft = "frp_tunnel.cli:main"
 frp-tunnel = "frp_tunnel.cli:main"
-frp = "frp_tunnel.cli:main"
 
 [tool.setuptools]
 packages = ["frp_tunnel", "frp_tunnel.core"]

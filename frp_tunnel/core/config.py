@@ -12,7 +12,6 @@ class ConfigManager:
         self.config_dir.mkdir(parents=True, exist_ok=True)
         
         self.server_config_path = self.config_dir / 'frps.ini'
-        self.client_config_path = self.config_dir / 'frpc.ini'
     
     def create_server_config(self, config: Dict[str, Any]) -> Path:
         """Create server configuration file"""
@@ -53,45 +52,6 @@ heartbeat_timeout = 90
         
         return self.server_config_path
     
-    def create_client_config(self, config: Dict[str, Any]) -> Path:
-        """Create client configuration file"""
-        # Handle both flat and nested config structures
-        if 'common' in config:
-            server_addr = config['common'].get('server_addr', '127.0.0.1')
-            server_port = config['common'].get('server_port', 7000)
-            token = config['common'].get('token', '')
-            local_port = config.get('ssh', {}).get('local_port', 22)
-            remote_port = config.get('ssh', {}).get('remote_port', 6001)
-            username = config.get('username', 'colab')
-        else:
-            server_addr = config.get('server_addr', '127.0.0.1')
-            server_port = config.get('server_port', 7000)
-            token = config.get('token', '')
-            local_port = config.get('local_port', 22)
-            remote_port = config.get('remote_port', 6001)
-            username = config.get('username', 'colab')
-        
-        config_content = f"""[common]
-server_addr = {server_addr}
-server_port = {server_port}
-token = {token}
-
-# Logging
-log_file = {self.config_dir}/frpc.log
-log_level = info
-
-[ssh_{username}]
-type = tcp
-local_ip = 127.0.0.1
-local_port = {local_port}
-remote_port = {remote_port}
-"""
-        
-        with open(self.client_config_path, 'w') as f:
-            f.write(config_content)
-        
-        return self.client_config_path
-    
     def get_server_config(self) -> Dict[str, Any]:
         """Read server configuration"""
         if not self.server_config_path.exists():
@@ -99,19 +59,6 @@ remote_port = {remote_port}
         
         config = configparser.ConfigParser()
         config.read(self.server_config_path)
-        
-        if 'common' not in config:
-            return {}
-        
-        return dict(config['common'])
-    
-    def get_client_config(self) -> Dict[str, Any]:
-        """Read client configuration"""
-        if not self.client_config_path.exists():
-            return {}
-        
-        config = configparser.ConfigParser()
-        config.read(self.client_config_path)
         
         if 'common' not in config:
             return {}

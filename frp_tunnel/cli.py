@@ -5,7 +5,6 @@ import sys
 import os
 import subprocess
 import secrets
-import configparser
 from pathlib import Path
 import click
 from rich.console import Console
@@ -23,7 +22,7 @@ HOME = Path.home()
 DATA_DIR = HOME / 'data' / 'frp'
 BIN_DIR = HOME / '.frp-tunnel' / 'bin'
 SERVER_INI = DATA_DIR / 'frps.ini'
-CLIENT_INI = DATA_DIR / 'frpc.ini'
+CLIENT_YAML = DATA_DIR / 'frpc.yaml'
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 BIN_DIR.mkdir(parents=True, exist_ok=True)
@@ -76,7 +75,39 @@ def token():
     """Generate a new token"""
     new_token = gen_token()
     console.print(f"🔑 Generated token: [bold yellow]{new_token}[/bold yellow]")
-    console.print("💡 Configure manually in server.ini")
+    console.print("💡 Configure manually in frps.ini")
+
+@cli.command('frpc', context_settings={'ignore_unknown_options': True, 'allow_interspersed_args': False})
+@click.argument('args', nargs=-1, type=click.UNPROCESSED)
+def forward_frpc(args):
+    """Forward command to frpc binary
+    
+    Examples:
+      ft frpc -c ~/data/frp/frpc.yaml
+      ft frpc reload -c ~/data/frp/frpc.yaml
+      ft frpc status -c ~/data/frp/frpc.yaml
+    """
+    download_frp()
+    frpc_bin = BIN_DIR / ('frpc.exe' if sys.platform == 'win32' else 'frpc')
+    
+    # Forward to frpc with all args
+    result = subprocess.run([str(frpc_bin)] + list(args))
+    sys.exit(result.returncode)
+
+@cli.command('frps', context_settings={'ignore_unknown_options': True, 'allow_interspersed_args': False})
+@click.argument('args', nargs=-1, type=click.UNPROCESSED)
+def forward_frps(args):
+    """Forward command to frps binary
+    
+    Examples:
+      ft frps -c ~/data/frp/frps.ini
+    """
+    download_frp()
+    frps_bin = BIN_DIR / ('frps.exe' if sys.platform == 'win32' else 'frps')
+    
+    # Forward to frps with all args
+    result = subprocess.run([str(frps_bin)] + list(args))
+    sys.exit(result.returncode)
 
 @cli.command()
 def version():
@@ -102,9 +133,9 @@ def server(force, restart):
     """Start FRP server
     
     Examples:
-      frp-tunnel server           # Start server (auto-gen token)
-      frp-tunnel server -f        # Force restart
-      frp-tunnel server -r        # Restart and show status
+      ft server           # Start server (auto-gen token)
+      ft server -f        # Force restart
+      ft server -r        # Restart and show status
     """
     download_frp()
     
@@ -149,121 +180,33 @@ authentication_method = token
     console.print("✅ Server started")
 
 @cli.command()
-@click.option('--server', help='Server address (required for first time)')
-@click.option('--token', help='Authentication token (required for first time)')
-@click.option('--port', multiple=True, type=int, help='Remote port(s) to add')
-@click.option('--remove', multiple=True, type=int, help='Remote port(s) to remove')
-def client(server, token, port, remove):
-    """Start FRP client
+@click.option('--server', required=True, help='Server address')
+@click.option('--token', required=True, help='Authentication token')
+@click.option('--port', multiple=True, type=int, required=True, help='Remote port(s)')
+def client(server, token, port):
+    """Generate client config (YAML format)
     
     Examples:
-      # First time - specify server and token
-      frp-tunnel client --server 1.2.3.4 --token xxx --port 6003 --port 6004
+      # Generate config
+      ft client --server 1.2.3.4 --token xxx --port 6003 --port 6004
       
-      # Add more ports
-      frp-tunnel client --port 6005
+      # Start client
+      ft frpc -c ~/data/frp/frpc.yaml
       
-      # Remove ports
-      frp-tunnel client --remove 6005
-      
-    Note: Configure additional ports in frpc.ini manually
+      # Hot reload after config change
+      ft frpc reload -c ~/data/frp/frpc.yaml
     """
     download_frp()
     
-    # Check if config exists
-    existing_config = {}
-    if CLIENT_INI.exists():
-        import configparser
-        parser = configparser.ConfigParser()
-        parser.read(CLIENT_INI)
-        if 'common' in parser:
-            existing_config = {
-                'server': parser['common'].get('server_addr'),
-                'token': parser['common'].get('token'),
-                'ports': [int(s.split('_')[1]) for s in parser.sections() if s != 'common']
-            }
+    config_file = _generate_client_config(server, token, list(port))
     
-    # Use existing config if not provided
-    if not server and existing_config.get('server'):
-        server = existing_config['server']
-    if not token and existing_config.get('token'):
-        token = existing_config['token']
-    
-    # Validate required params
-    if not server or not token:
-        console.print("❌ Error: --server and --token required for first time setup", style="red")
-        return
-    
-    if not port and not remove:
-        console.print("❌ Error: Specify --port to add or --remove to remove", style="red")
-        return
-    
-    # Merge with existing ports
-    all_ports = set(existing_config.get('ports', []))
-    all_ports.update(port)
-    all_ports -= set(remove)
-    
-    if not all_ports:
-        console.print("❌ Error: At least one port must remain", style="red")
-        return
-    
-    all_ports = sorted(list(all_ports))
-    
-    # Generate client config with multiple ports
-    config_lines = [
-        "[common]",
-        f"server_addr = {server}",
-        "server_port = 7000",
-        f"token = {token}",
-        f"log_file = {DATA_DIR}/frpc.log",
-        "log_level = info",
-        "login_fail_exit = false",
-        ""
-    ]
-    
-    # Add SSH port (first port)
-    config_lines.extend([
-        f"[ssh_{all_ports[0]}]",
-        "type = tcp",
-        "local_ip = 127.0.0.1",
-        "local_port = 22",
-        f"remote_port = {all_ports[0]}",
-        ""
-    ])
-    
-    # Add additional ports (RDP, etc.)
-    for p in all_ports[1:]:
-        service_name = "rdp" if "04" in str(p) or p == 3389 else "service"
-        local_port = 3389 if service_name == "rdp" else p
-        config_lines.extend([
-            f"[{service_name}_{p}]",
-            "type = tcp",
-            "local_ip = 127.0.0.1",
-            f"local_port = {local_port}",
-            f"remote_port = {p}",
-            ""
-        ])
-    
-    config = "\n".join(config_lines)
-    CLIENT_INI.write_text(config)
-    
-    # Start client
-    ports_str = ", ".join(str(p) for p in all_ports)
-    if remove:
-        console.print(f"🗑️  Removed ports: {', '.join(str(p) for p in remove)}")
-    console.print(f"🚀 Starting client (ports: {ports_str})...")
-    frpc = BIN_DIR / ('frpc.exe' if sys.platform == 'win32' else 'frpc')
-    
-    if sys.platform == 'win32':
-        subprocess.Popen([str(frpc), '-c', str(CLIENT_INI)],
-                        creationflags=subprocess.CREATE_NO_WINDOW)
-    else:
-        subprocess.Popen([str(frpc), '-c', str(CLIENT_INI)],
-                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    
-    import time
-    time.sleep(2)
-    console.print("✅ Client started")
+    ports_str = ", ".join(str(p) for p in port)
+    console.print(f"✅ Config generated: {config_file}")
+    console.print(f"📝 Ports: {ports_str}")
+    console.print(f"\n🚀 Start client:")
+    console.print(f"   ft frpc -c {config_file}")
+    console.print(f"\n🔄 Hot reload:")
+    console.print(f"   ft frpc reload -c {config_file}")
 
 @cli.command('client-add-port')
 @click.argument('ports', nargs=-1, type=int, required=True)
@@ -271,36 +214,36 @@ def client_add_port(ports):
     """Add port(s) to existing client config
     
     Examples:
-      frp-tunnel client-add-port 6005
-      frp-tunnel client-add-port 6005 6006 6007
+      ft client-add-port 6005
+      ft client-add-port 6005 6006 6007
+      
+      # Then hot reload
+      ft frpc reload -c ~/data/frp/frpc.yaml
     """
-    if not CLIENT_INI.exists():
+    if not CLIENT_YAML.exists():
         console.print("❌ Error: No existing config. Run 'frp-tunnel client' first", style="red")
         return
     
     # Read existing config
-    import configparser
-    parser = configparser.ConfigParser()
-    parser.read(CLIENT_INI)
+    import yaml
+    with open(CLIENT_YAML) as f:
+        config = yaml.safe_load(f)
     
-    server = parser['common']['server_addr']
-    token = parser['common']['token']
-    existing_ports = [int(s.split('_')[1]) for s in parser.sections() if s != 'common']
+    server = config['serverAddr']
+    token = config['auth']['token']
+    existing_ports = [p['remotePort'] for p in config['proxies']]
     
     # Add new ports
     all_ports = sorted(list(set(existing_ports + list(ports))))
     
-    # Stop existing client
-    stop_client()
-    import time
-    time.sleep(1)
-    
-    # Generate new config
-    _generate_client_config(server, token, all_ports)
-    _start_frpc()
+    # Regenerate config
+    config_file = _generate_client_config(server, token, all_ports)
     
     ports_str = ", ".join(str(p) for p in all_ports)
-    console.print(f"✅ Added ports. Active: {ports_str}")
+    console.print(f"✅ Added ports. Config updated: {config_file}")
+    console.print(f"📝 Active ports: {ports_str}")
+    console.print(f"\n🔄 Hot reload:")
+    console.print(f"   ft frpc reload -c {config_file}")
 
 @cli.command('client-remove-port')
 @click.argument('ports', nargs=-1, type=int, required=True)
@@ -308,21 +251,24 @@ def client_remove_port(ports):
     """Remove port(s) from existing client config
     
     Examples:
-      frp-tunnel client-remove-port 6005
-      frp-tunnel client-remove-port 6005 6006
+      ft client-remove-port 6005
+      ft client-remove-port 6005 6006
+      
+      # Then hot reload
+      ft frpc reload -c ~/data/frp/frpc.yaml
     """
-    if not CLIENT_INI.exists():
+    if not CLIENT_YAML.exists():
         console.print("❌ Error: No existing config", style="red")
         return
     
     # Read existing config
-    import configparser
-    parser = configparser.ConfigParser()
-    parser.read(CLIENT_INI)
+    import yaml
+    with open(CLIENT_YAML) as f:
+        config = yaml.safe_load(f)
     
-    server = parser['common']['server_addr']
-    token = parser['common']['token']
-    existing_ports = [int(s.split('_')[1]) for s in parser.sections() if s != 'common']
+    server = config['serverAddr']
+    token = config['auth']['token']
+    existing_ports = [p['remotePort'] for p in config['proxies']]
     
     # Remove ports
     all_ports = sorted(list(set(existing_ports) - set(ports)))
@@ -331,69 +277,89 @@ def client_remove_port(ports):
         console.print("❌ Error: Cannot remove all ports", style="red")
         return
     
-    # Stop existing client
-    stop_client()
-    import time
-    time.sleep(1)
-    
-    # Generate new config
-    _generate_client_config(server, token, all_ports)
-    _start_frpc()
+    # Regenerate config
+    config_file = _generate_client_config(server, token, all_ports)
     
     ports_str = ", ".join(str(p) for p in all_ports)
-    console.print(f"✅ Removed ports. Active: {ports_str}")
+    console.print(f"✅ Removed ports. Config updated: {config_file}")
+    console.print(f"📝 Active ports: {ports_str}")
+    console.print(f"\n🔄 Hot reload:")
+    console.print(f"   ft frpc reload -c {config_file}")
 
 def _generate_client_config(server, token, ports):
-    """Generate client config file"""
-    config_lines = [
-        "[common]",
-        f"server_addr = {server}",
-        "server_port = 7000",
-        f"token = {token}",
-        f"log_file = {DATA_DIR}/frpc.log",
-        "log_level = info",
-        "login_fail_exit = false",
-        ""
-    ]
+    """Generate client config file in YAML format"""
+    import yaml
     
-    # Add SSH port (first port)
-    config_lines.extend([
-        f"[ssh_{ports[0]}]",
-        "type = tcp",
-        "local_ip = 127.0.0.1",
-        "local_port = 22",
-        f"remote_port = {ports[0]}",
-        ""
-    ])
+    config = {
+        'serverAddr': server,
+        'serverPort': 7000,
+        'auth': {'token': token},
+        'log': {
+            'to': str(DATA_DIR / 'frpc.log'),
+            'level': 'info'
+        },
+        'webServer': {
+            'addr': '127.0.0.1',
+            'port': 7400
+        },
+        'proxies': []
+    }
     
-    # Add additional ports
+    # Add SSH proxy (first port)
+    config['proxies'].append({
+        'name': f'ssh_{ports[0]}',
+        'type': 'tcp',
+        'localIP': '127.0.0.1',
+        'localPort': 22,
+        'remotePort': ports[0]
+    })
+    
+    # Add additional proxies
     for p in ports[1:]:
         service_name = "rdp" if "04" in str(p) or p == 3389 else "service"
         local_port = 3389 if service_name == "rdp" else p
-        config_lines.extend([
-            f"[{service_name}_{p}]",
-            "type = tcp",
-            "local_ip = 127.0.0.1",
-            f"local_port = {local_port}",
-            f"remote_port = {p}",
-            ""
-        ])
+        config['proxies'].append({
+            'name': f'{service_name}_{p}',
+            'type': 'tcp',
+            'localIP': '127.0.0.1',
+            'localPort': local_port,
+            'remotePort': p
+        })
     
-    CLIENT_INI.write_text("\n".join(config_lines))
+    # Write YAML config
+    with open(CLIENT_YAML, 'w') as f:
+        yaml.dump(config, f, default_flow_style=False)
+    
+    return CLIENT_YAML
 
-def _start_frpc():
+def _start_frpc(config_file):
     """Start frpc process"""
     frpc = BIN_DIR / ('frpc.exe' if sys.platform == 'win32' else 'frpc')
     
     if sys.platform == 'win32':
-        subprocess.Popen([str(frpc), '-c', str(CLIENT_INI)],
+        subprocess.Popen([str(frpc), '-c', str(config_file)],
                         creationflags=subprocess.CREATE_NO_WINDOW)
     else:
-        subprocess.Popen([str(frpc), '-c', str(CLIENT_INI)],
+        subprocess.Popen([str(frpc), '-c', str(config_file)],
                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
     import time
     time.sleep(2)
+
+def _reload_frpc(config_file):
+    """Reload frpc configuration without restart"""
+    frpc = BIN_DIR / ('frpc.exe' if sys.platform == 'win32' else 'frpc')
+    
+    try:
+        result = subprocess.run([str(frpc), 'reload', '-c', str(config_file)],
+                              capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            return True
+        else:
+            # Reload failed, fallback to restart
+            return False
+    except:
+        return False
 
 @cli.command()
 def stop():
@@ -488,7 +454,7 @@ def client_status():
         else:
             console.print("📱 Client: [green]Connected[/green]")
         
-        console.print(f"   📄 Config: [cyan]{CLIENT_INI}[/cyan]")
+        console.print(f"   📄 Config: [cyan]{CLIENT_YAML}[/cyan]")
         log_file = DATA_DIR / 'frpc.log'
         if log_file.exists():
             console.print(f"   📋 Log: [cyan]{log_file}[/cyan]")
@@ -497,6 +463,17 @@ def client_status():
             console.print(f"   🔧 Binary: [cyan]{frpc_bin}[/cyan]")
     else:
         console.print("📱 Client: [red]Disconnected[/red]")
+        
+        # Show config if exists
+        if CLIENT_YAML.exists():
+            import yaml
+            with open(CLIENT_YAML) as f:
+                config = yaml.safe_load(f)
+            console.print(f"   📄 Config: [cyan]{CLIENT_YAML}[/cyan]")
+            console.print(f"   🌐 Server: [cyan]{config.get('serverAddr', 'N/A')}:{config.get('serverPort', 7000)}[/cyan]")
+            ports = [p['remotePort'] for p in config.get('proxies', [])]
+            if ports:
+                console.print(f"   🔌 Ports: [cyan]{', '.join(map(str, ports))}[/cyan]")
     console.print()
 
 def main():

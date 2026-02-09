@@ -23,7 +23,7 @@ pip install frp-tunnel
 ### Start Server (One-time setup)
 ```bash
 # Auto-generates token and config
-frp-tunnel server
+ft server
 
 # Output:
 # 🚀 Starting server...
@@ -34,16 +34,16 @@ frp-tunnel server
 ### Connect Client
 ```bash
 # First time - specify server and token
-frp-tunnel client --server YOUR_SERVER_IP --token YOUR_TOKEN --port 6003
+ft client --server YOUR_SERVER_IP --token YOUR_TOKEN --port 6003
 
 # Multiple ports (SSH + RDP)
-frp-tunnel client --server YOUR_SERVER_IP --token YOUR_TOKEN --port 6003 --port 6004
+ft client --server YOUR_SERVER_IP --token YOUR_TOKEN --port 6003 --port 6004
 
 # Add more ports later (reuses existing config)
-frp-tunnel client-add-port 6005 6006
+ft client-add-port 6005 6006
 
 # Remove ports
-frp-tunnel client-remove-port 6005
+ft client-remove-port 6005
 
 # Then SSH normally
 ssh -p 6003 user@YOUR_SERVER_IP
@@ -53,27 +53,32 @@ ssh -p 6003 user@YOUR_SERVER_IP
 
 ```bash
 # Server
-frp-tunnel server              # Start server (auto-gen token)
-frp-tunnel server -f           # Force restart
-frp-tunnel server -r           # Restart
-frp-tunnel server-status       # Show server status
+ft server              # Start server (auto-gen token)
+ft server -f           # Force restart
+ft server -r           # Restart
+ft server-status       # Show server status
 
 # Client
-frp-tunnel client --server IP --token TOKEN --port 6003 --port 6004
-frp-tunnel client-add-port 6005 6006    # Add ports to existing config
-frp-tunnel client-remove-port 6005      # Remove ports
-frp-tunnel client-status                # Show client status
+ft client --server IP --token TOKEN --port 6003 --port 6004
+ft client-add-port 6005 6006    # Add ports to existing config
+ft client-remove-port 6005      # Remove ports
+ft client-status                # Show client status
+
+# Forward to frpc/frps
+ft frpc -c ~/data/frp/frpc.yaml           # Start client
+ft frpc reload -c ~/data/frp/frpc.yaml    # Hot reload
+ft frps -c ~/data/frp/frps.ini            # Start server
 
 # Utilities
-frp-tunnel token               # Generate new token
-frp-tunnel version             # Show version
-frp-tunnel stop                # Stop all
+ft token               # Generate new token
+ft version             # Show version
+ft stop                # Stop all
 ```
 
 ## 📊 Status Display
 
 ```bash
-$ frp-tunnel server-status
+$ ft server-status
 
 📊 Server Status
 🖥️  Server: Running
@@ -97,34 +102,43 @@ dashboard_user = admin
 dashboard_pwd = admin
 ```
 
-### Client Config (`~/data/frp/frpc.ini`)
-```ini
-[common]
-server_addr = YOUR_SERVER_IP
-server_port = 7000
-token = frp_your_token_here
-
-[ssh_6003]
-type = tcp
-local_ip = 127.0.0.1
-local_port = 22
-remote_port = 6003
-
-[rdp_6004]
-type = tcp
-local_ip = 127.0.0.1
-local_port = 3389
-remote_port = 6004
+### Client Config (`~/data/frp/frpc.yaml`)
+```yaml
+serverAddr: YOUR_SERVER_IP
+serverPort: 7000
+auth:
+  token: frp_your_token_here
+log:
+  to: ~/data/frp/frpc.log
+  level: info
+webServer:
+  addr: 127.0.0.1
+  port: 7400
+proxies:
+  - name: ssh_6003
+    type: tcp
+    localIP: 127.0.0.1
+    localPort: 22
+    remotePort: 6003
+  - name: rdp_6004
+    type: tcp
+    localIP: 127.0.0.1
+    localPort: 3389
+    remotePort: 6004
 ```
 
-Use `client-add-port` and `client-remove-port` commands to manage ports easily.
+**Note**: Client uses YAML format (INI is deprecated in FRP 0.52+). The `webServer` section enables hot reload support.
+
+Use `ft client-add-port` and `ft client-remove-port` commands to manage ports easily.
 
 ## 🌟 Features
 
 - ✅ **Auto-download** FRP binaries (no manual installation)
 - ✅ **Auto-generate** token and config
+- ✅ **YAML config** - Modern format with hot reload support
 - ✅ **Multiple ports** - SSH, RDP, or any service
 - ✅ **Easy port management** - add/remove ports without editing config
+- ✅ **Hot reload** - Update config without disconnecting SSH
 - ✅ **Background mode** - runs as daemon
 - ✅ **Multi-platform** - Windows, Linux, macOS
 - ✅ **Dashboard** - Web UI at port 7500
@@ -132,16 +146,29 @@ Use `client-add-port` and `client-remove-port` commands to manage ports easily.
 
 ## 🛠️ Advanced Usage
 
+### Hot Reload (No SSH Disconnection)
+```bash
+# Start client with webServer enabled (auto-configured)
+ft frpc -c ~/data/frp/frpc.yaml &
+
+# Add/remove ports
+ft client-add-port 6005 6006
+ft client-remove-port 6004
+
+# Hot reload - no SSH disconnection!
+ft frpc reload -c ~/data/frp/frpc.yaml
+```
+
 ### Multiple Ports
 Use commands to manage ports easily:
 ```bash
 # Add multiple ports at once
-frp-tunnel client-add-port 6005 6006 6007
+ft client-add-port 6005 6006 6007
 
 # Remove specific ports
-frp-tunnel client-remove-port 6005
+ft client-remove-port 6005
 
-# Or edit config manually: ~/data/frp/frpc.ini
+# Or edit config manually: ~/data/frp/frpc.yaml
 ```
 
 ### Dashboard Access
