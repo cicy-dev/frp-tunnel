@@ -19,11 +19,11 @@ jobs:
           Start-Service sshd
           Set-Service -Name sshd -StartupType 'Automatic'
           
-          # Create admin user
-          $password = "1234"
+          # Create admin user with strong password
+          $password = "Admin@1234"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
           if (!(Get-LocalUser -Name "admin" -ErrorAction SilentlyContinue)) {
-              New-LocalUser -Name "admin" -Password $securePass -AccountNeverExpires
+              New-LocalUser -Name "admin" -Password $securePass -AccountNeverExpires -PasswordNeverExpires
           }
           Add-LocalGroupMember -Group "Administrators" -Member "admin" -ErrorAction SilentlyContinue
           
@@ -68,7 +68,7 @@ jobs:
         run: |
           Write-Host "--- Connection Info ---"
           Write-Host "User: admin"
-          Write-Host "Password: 1234"
+          Write-Host "Password: Admin@1234"
           Write-Host "SSH command: ssh -p 6003 admin@34.102.78.219"
           Write-Host "-----------------------"
           Get-Service sshd
