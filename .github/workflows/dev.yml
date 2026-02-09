@@ -87,13 +87,7 @@ jobs:
           $frpcConfig = "$env:USERPROFILE\data\frp\frpc.yaml"
           
           # 追加 MCP 代理配置
-          $mcpProxy = @"
-  - name: mcp_6005
-    type: tcp
-    localIP: 127.0.0.1
-    localPort: 8101
-    remotePort: 6005
-"@
+          $mcpProxy = "  - name: mcp_6005`n    type: tcp`n    localIP: 127.0.0.1`n    localPort: 8101`n    remotePort: 6005"
           Add-Content -Path $frpcConfig -Value $mcpProxy
           
           # 重启客户端
