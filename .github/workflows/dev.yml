@@ -71,7 +71,7 @@ jobs:
           .\scripts\windows\boot.ps1
         shell: powershell
       
-      - name: Install FRP Tunnel
+      - name: Install and Run FRP Tunnel
         env:
           FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
         run: |
@@ -88,31 +88,18 @@ jobs:
           # 下载 FRP 二进制文件
           python -c "from frp_tunnel.cli import download_frp; download_frp()"
           
-          # 直接启动 frpc.exe（后台运行，独立进程）
+          Write-Host "Starting FRP client: SSH(6003), RDP(6004), MCP(8101->6005)"
+          
+          # 直接运行 frpc（前台运行，阻塞 10 分钟）
           $frpcExe = "$env:USERPROFILE\.frp-tunnel\bin\frpc.exe"
+          
+          # 使用 timeout 命令运行 10 分钟
+          $timeout = 600  # 10 minutes in seconds
           $process = Start-Process -NoNewWindow -PassThru -FilePath $frpcExe -ArgumentList "-c `"$configDest`""
-          Write-Host "FRP client process started (PID: $($process.Id))"
-          Start-Sleep -Seconds 5
           
-          Write-Host "FRP client started: SSH(6003), RDP(6004), MCP(8101->6005)"
-        shell: powershell
-        
-      
-      - name: Keep alive (10 Minutes)
-        run: |
-          # 设置时长为 10 分钟
-          $timeout = New-TimeSpan -Minutes 10
-          $sw = [System.Diagnostics.Stopwatch]::StartNew()
+          Write-Host "FRP client running (PID: $($process.Id)), keeping alive for 10 minutes..."
+          Start-Sleep -Seconds $timeout
           
-          Write-Host "Keeping runner alive for 10 minutes..."
-          
-          while ($sw.Elapsed -lt $timeout) {
-            # 缩短日志刷新频率，每 1 分钟打印一次，避免日志过于冗长
-            Start-Sleep -Seconds 60
-            $timeLeft = $timeout - $sw.Elapsed
-            Write-Host "Remaining: $($timeLeft.ToString('mm\:ss')) | Elapsed: $($sw.Elapsed.ToString('mm\:ss'))"
-          }
-          
-          Write-Host "10 minutes session completed."
+          Write-Host "Session completed."
         shell: powershell
         
