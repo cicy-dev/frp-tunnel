@@ -1,7 +1,9 @@
 name: Windows SSH Setup (Key-Only & Default Dir)
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 env:
   SSH_USER: "admin"
