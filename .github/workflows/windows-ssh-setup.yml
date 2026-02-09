@@ -74,12 +74,6 @@ jobs:
           Write-Host "Checking SSH service..."
           Get-Service sshd
           Write-Host ""
-          Write-Host "Checking authorized_keys..."
-          Get-Content "$env:USERPROFILE\.ssh\authorized_keys"
-          Write-Host ""
-          Write-Host "Testing local SSH..."
-          ssh -o StrictHostKeyChecking=no localhost "echo Local SSH works!"
-          Write-Host ""
           Write-Host "Keeping connection alive for 5 minutes..."
         shell: powershell
       
