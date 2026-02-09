@@ -185,8 +185,17 @@ def install():
 @click.option('--port', type=int, default=6001, help='Remote port for SSH')
 @click.option('--local-port', type=int, default=22, help='Local SSH port')
 @click.option('-d', '--daemon', is_flag=True, help='Run in background (daemon mode)')
-def start(component, server, token, port, local_port, daemon):
+@click.option('-f', '--force', is_flag=True, help='Force restart if already running')
+def start(component, server, token, port, local_port, daemon, force):
     """Start FRP server or client"""
+    
+    # Force restart if requested
+    if force:
+        console.print("🔄 Force restarting...")
+        tunnel_manager.stop_all()
+        import time
+        time.sleep(2)
+    
     if daemon:
         import subprocess
         import sys
@@ -201,6 +210,8 @@ def start(component, server, token, port, local_port, daemon):
             cmd.extend(['--port', str(port)])
         if local_port != 22:
             cmd.extend(['--local-port', str(local_port)])
+        if force:
+            cmd.append('--force')
         
         # Start in background
         if sys.platform == 'win32':
@@ -209,7 +220,28 @@ def start(component, server, token, port, local_port, daemon):
             subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
         
         console.print("✅ Started in daemon mode")
+        
+        # Show log tail
+        import time
+        time.sleep(2)
+        console.print("\n📋 Recent logs:")
+        log_file = config_manager.config_dir / 'frps.log' if component in ['server', 'both'] else config_manager.config_dir / 'frpc.log'
+        if log_file.exists():
+            with open(log_file, 'r') as f:
+                lines = f.readlines()
+                for line in lines[-10:]:
+                    console.print(f"   {line.rstrip()}")
+        console.print(f"\n💡 View full logs: tail -f {log_file}")
         return
+    
+    # Get public IP for server
+    if component in ['server', 'both']:
+        try:
+            import requests
+            public_ip = requests.get('https://api.myip.com', timeout=3).json().get('ip', 'unknown')
+            console.print(f"🌐 Public IP: [bold cyan]{public_ip}[/bold cyan]")
+        except:
+            pass
     
     if component in ['server', 'both']:
         config = config_manager.get_server_config()
