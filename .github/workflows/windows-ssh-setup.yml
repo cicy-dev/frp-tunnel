@@ -38,14 +38,26 @@ jobs:
         shell: powershell
       
       - name: Install FRP Tunnel
+        env:
+          FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
         run: |
           pip install frp-tunnel
-          Write-Host "✅ FRP Tunnel installed"
+          frp-tunnel client --server 34.102.78.219 --token $env:FRP_TOKEN --port 6003
+          Write-Host "✅ FRP Tunnel connected on port 6003"
         shell: powershell
       
       - name: Show connection info
         run: |
           Write-Host "📋 Connection ready!"
           Write-Host "Username: $env:USERNAME"
-          Write-Host "Use: frp-tunnel client --server YOUR_IP --token YOUR_TOKEN --port 6003"
+          Write-Host "SSH from server: ssh -p 6003 $env:USERNAME@34.102.78.219"
+          Write-Host "Keeping connection alive for 5 minutes..."
+        shell: powershell
+      
+      - name: Keep alive for 5 minutes
+        run: |
+          for ($i=1; $i -le 30; $i++) {
+            Write-Host "[$i/30] Connection active..."
+            Start-Sleep -Seconds 10
+          }
         shell: powershell
