@@ -103,14 +103,6 @@ jobs:
           Write-Host "FRP Tunnel started."
         shell: powershell
       
-      - name: Show connection info
-        run: |
-          Write-Host "=========================================="
-          Write-Host "SSH Command: ssh -p 6003 admin@34.102.78.219"
-          Write-Host "Auth: SSH Key Only (Password disabled)"
-          Write-Host "=========================================="
-        shell: powershell
-      
       - name: Keep alive
         run: |
           Write-Host "Keeping alive for 6 hours..."
