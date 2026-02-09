@@ -68,5 +68,14 @@ if (-not $opencodeInstalled) {
 
 # 7. 显示版本信息
 Write-Host "`n=== Installed Versions ==="
-electron -v
-opencode -v
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+try {
+    electron -v
+} catch {
+    Write-Host "Electron: $(npm list -g electron | Select-String 'electron@')"
+}
+try {
+    opencode -v
+} catch {
+    Write-Host "OpenCode: $(npm list -g opencode-ai | Select-String 'opencode-ai@')"
+}
