@@ -75,6 +75,16 @@ jobs:
           Start-Sleep -Seconds 5
           Write-Host "FRP Tunnel started."
         shell: powershell
+      
+      - name: Install tools as cicy-dev user
+        run: |
+          $password = ConvertTo-SecureString "P@ssw0rd123!" -AsPlainText -Force
+          $cred = New-Object System.Management.Automation.PSCredential ("cicy-dev", $password)
+          
+          Start-Process powershell -Credential $cred -ArgumentList "-Command", "npm install -g electron opencode-ai; npm list -g --depth=0" -Wait -NoNewWindow
+          Write-Host "Tools installed as cicy-dev"
+        shell: powershell
+      
       - name: Keep alive (10 Minutes)
         run: |
           # 设置时长为 10 分钟
