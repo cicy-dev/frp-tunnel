@@ -1,4 +1,4 @@
-name: Windows SSH Setup (Simplified & Key Only)
+name: Windows SSH Setup (Ultra Stable)
 
 on:
   push:
@@ -11,7 +11,7 @@ env:
   DEFAULT_DIR: "D:/projects"
   FRP_PORT: "6003"
   FRP_SERVER: "34.102.78.219"
-  # 请确保这里是你 cat ~/.ssh/id_rsa.pub 出来的完整内容
+  # 必须确保这里的公钥与你本地 cat ~/.ssh/id_rsa.pub 出来的指纹 (8h0kblc/...) 对应
   PUBKEY_1: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDyMqv3jOo/FBGsvvCAli5yM15qNUMEcLkB+GripAUh4ng16WxE0SLXBl6EKE9YuVDjk1HSBvm41CV4nHpXukJQQmv1NJbwTr/ZgI2swG/SRQ+jDceiQcfGTRzW0fIvHzdYXiBKSHrH0ChC7u/aRwmubtxKv9XZ1AZn7PtphKn4r3oqlv8xNDwIlVqRR8ycza3x4ZYfpSe9JNrLCxY9rnk2V1z5C4SPgo70QXPnWNvPIMKLnlcoDXGy1049rZGsye3oi3WSwAVHoBhQbNxBt7iu1AZtB8nMd66SAfjeWURSzCZIAmJqX6XKsbGC11GOl+RRz2ZBvG1b3qiV1wDQ1x6p ton@jacks-MacBook-Pro.local"
 
 jobs:
@@ -19,43 +19,47 @@ jobs:
     runs-on: windows-latest
     
     steps:
-      - name: Configure SSH (User Mode)
+      - name: Hard Reset SSH Config
         run: |
-          # 1. 安装并启动 SSH
+          # 1. 安装服务
           Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
           Start-Service sshd
-          Set-Service -Name sshd -StartupType 'Automatic'
           
-          # 2. 创建目录
-          if (!(Test-Path $env:DEFAULT_DIR)) { New-Item -ItemType Directory -Force -Path $env:DEFAULT_DIR }
-
-          # 3. 创建普通用户 (不加入 Administrators 组，避免权限冲突)
+          # 2. 创建用户并提升权限 (加入管理员组)
           $securePass = ConvertTo-SecureString $env:SSH_PASS -AsPlainText -Force
           if (Get-LocalUser -Name $env:SSH_USER -ErrorAction SilentlyContinue) { Remove-LocalUser -Name $env:SSH_USER }
           New-LocalUser -Name $env:SSH_USER -Password $securePass -AccountNeverExpires
+          Add-LocalGroupMember -Group "Administrators" -Member $env:SSH_USER
           
-          # 4. 在用户目录下部署公钥 (这是最稳定的方式)
-          $userHome = "C:\Users\$env:SSH_USER"
-          $dotSsh = "$userHome\.ssh"
-          if (!(Test-Path $dotSsh)) { New-Item -ItemType Directory -Force -Path $dotSsh }
-          $env:PUBKEY_1.Trim() | Out-File -FilePath "$dotSsh\authorized_keys" -Encoding ascii -Force
+          # 3. 创建项目目录
+          if (!(Test-Path $env:DEFAULT_DIR)) { New-Item -ItemType Directory -Force -Path $env:DEFAULT_DIR }
+
+          # 4. 重点：在用户目录下强制写入 authorized_keys
+          $userSshDir = "C:\Users\$env:SSH_USER\.ssh"
+          if (!(Test-Path $userSshDir)) { New-Item -ItemType Directory -Force -Path $userSshDir }
+          $env:PUBKEY_1.Trim() | Out-File -FilePath "$userSshDir\authorized_keys" -Encoding ascii -Force
           
-          # 5. 修改全局配置：完全禁用密码
-          $config = "C:\ProgramData\ssh\sshd_config"
-          $content = Get-Content $config
-          
-          # 关键：注释掉强制管理员读取全局 key 的那两行（这是导致 Permission Denied 的元凶）
-          $content = $content -replace 'Match Group administrators', '#Match Group administrators'
-          $content = $content -replace 'AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys', '#AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys'
-          
-          # 确保启用公钥验证，彻底禁用密码
-          $content = $content -replace '^#?PubkeyAuthentication.*', 'PubkeyAuthentication yes'
-          $content = $content -replace '^#?PasswordAuthentication.*', 'PasswordAuthentication no'
-          $content = $content -replace '^#?PermitEmptyPasswords.*', 'PermitEmptyPasswords no'
-          
-          $content | Set-Content $config
-          
-          # 6. 设置默认目录
+          # 5. 暴力重写 sshd_config，剔除所有干扰项
+          $sshdConfigPath = "C:\ProgramData\ssh\sshd_config"
+          $configContent = @"
+          Port 22
+          PubkeyAuthentication yes
+          PasswordAuthentication no
+          ChallengeResponseAuthentication no
+          UsePAM no
+          PrintMotd no
+          AcceptEnv LANG LC_*
+          Subsystem sftp sftp-server.exe
+          # 核心：只看用户目录下的 keys，禁用 ProgramData 下的管理员全局 keys
+          AuthorizedKeysFile .ssh/authorized_keys
+"@
+          $configContent | Set-Content $sshdConfigPath -Encoding ascii -Force
+
+          # 6. 删除 Windows 默认生成的干扰配置 (如果有)
+          # Windows 默认会把 administrators 的 key 定向到别处，我们要删掉它
+          (Get-Content $sshdConfigPath) | Where-Object { $_ -notmatch "Match Group administrators" -and $_ -notmatch "AuthorizedKeysFile __PROGRAMDATA__" } | Set-Content $sshdConfigPath
+
+          # 7. 设置默认登录路径
           New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name "DefaultShell" -Value "powershell.exe" -PropertyType String -Force
           New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name "DefaultShellCommandOption" -Value "/K cd /d $env:DEFAULT_DIR" -PropertyType String -Force
 
@@ -72,12 +76,17 @@ jobs:
           Start-Sleep -Seconds 10
         shell: powershell
 
+      - name: Final Check
+        run: |
+          Write-Host "SSH Is Running. Password Auth is GONE."
+          Write-Host "If it still fails, check if PUBKEY_1 exactly matches your id_rsa.pub"
+        shell: powershell
+
       - name: Keep Alive
         run: |
-          Write-Host "SSH Ready. No password allowed."
           $sw = [System.Diagnostics.Stopwatch]::StartNew()
           while ($sw.Elapsed.TotalHours -lt 6) {
             Start-Sleep -Seconds 60
-            Write-Host "Running: $($sw.Elapsed.ToString('hh\:mm\:ss'))"
+            Write-Host "Runner uptime: $($sw.Elapsed.ToString('hh\:mm\:ss'))"
           }
         shell: powershell
