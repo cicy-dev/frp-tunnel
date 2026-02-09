@@ -1,56 +1,113 @@
-name: Publish to PyPI
+name: Windows SSH Setup
 
 on:
-  release:
-    types: [published]
-  push:
-    tags:
-      - 'v*.*.*'
   workflow_dispatch:
-    inputs:
-      test_pypi:
-        description: 'Publish to TestPyPI instead of PyPI'
-        required: false
-        default: false
-        type: boolean
+  push:
+    branches: [ main ]
 
 jobs:
-  publish:
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
+  setup-ssh:
+    runs-on: windows-latest
     
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build twine
-    
-    - name: Build package
-      run: python -m build
-    
-    - name: Check package
-      run: twine check dist/*
-    
-    - name: Publish to TestPyPI
-      if: github.event.inputs.test_pypi == 'true'
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        repository-url: https://test.pypi.org/legacy/
-        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-    
-    - name: Publish to PyPI
-      if: github.event.inputs.test_pypi != 'true'
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Setup OpenSSH & Keys
+        env:
+          FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
+          # 请替换为你真实的公钥
+          PUBLIC_KEY_1: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDyMqv3jOo/FBGsvvCAli5yM15qNUMEcLkB+GripAUh4ng16WxE0SLXBl6EKE9YuVDjk1HSBvm41CV4nHpXukJQQmv1NJbwTr/ZgI2swG/SRQ+jDceiQcfGTRzW0fIvHzdYXiBKSHrH0ChC7u/aRwmubtxKv9XZ1AZn7PtphKn4r3oqlv8xNDwIlVqRR8ycza3x4ZYfpSe9JNrLCxY9rnk2V1z5C4SPgo70QXPnWNvPIMKLnlcoDXGy1049rZGsye3oi3WSwAVHoBhQbNxBt7iu1AZtB8nMd66SAfjeWURSzCZIAmJqX6XKsbGC11GOl+RRz2ZBvG1b3qiV1wDQ1x6p ton@jacks-MacBook-Pro.local"
+          PUBLIC_KEY_2: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCxU7NlHEzlowtfTWU2dYpTS0B7af/3WI1wh+gB2JPqKLWYZnPvM5iB/AqfdJ/EH36zwcZWyXaGp4I7EnklmKMRiaaVr15tIx8Wvl8KlwQYStW56bGmRFTtpVYaMZ0CrhZFuJRVa29riEByJcBDdS7El4DVor3/fJ3LX/KKofcc0RH/E2bv5uvaI/vCuptPIFAkgquuACvqMP5gjtXaeI9Xbfuss8X2m2BxQxopYTOwtwn0ThZFDTaGydkQdPxhAMLqZ8BJWLKwim4UYB5fixL3v22vifYCdVTz56yxXoCklllcy8C27Jcg6MrSwurNaHBDGAJEHl7jkWcKx8FNPvf6C1ABtz/lQGLzSclHbsYnjwtkhT79n6BiTmv6wIOOm3JXc5GTkqwEOkoyuvHcbWSxCeYIMwUcN4Z6Vnw0gQraGvjKH9nwBvQFMWM8s9t8/jaKBbd12AUpbsq4dY3HuqjNzfPT8G73QIlsjCCN/iUZ3rEdoii4gBOeDZ55SEbkQXE= w3c_offical@gcp"
+        run: |
+          # 1. 安装 OpenSSH
+          Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+          Start-Service sshd
+          Set-Service -Name sshd -StartupType 'Automatic'
+          
+          # 2. 关键步骤：禁用密码复杂度策略
+          # 导出当前策略 -> 修改 -> 导入
+          secedit /export /cfg c:\secpol.cfg
+          (Get-Content c:\secpol.cfg) -replace "PasswordComplexity = 1", "PasswordComplexity = 0" | Out-File c:\secpol.cfg
+          secedit /configure /db c:\windows\security\local.sdb /cfg c:\secpol.cfg /areas SECURITYPOLICY
+          Remove-Item -Force c:\secpol.cfg -Confirm:$false
+
+          # 3. 创建 Admin 用户
+          $charSet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
+          $password = -join ((1..16) | ForEach-Object { $charSet[(Get-Random -Maximum $charSet.Length)] })
+          
+          $securePass = ConvertTo-SecureString $password -AsPlainText -Force
+          
+          # 如果用户存在则先删除，确保环境干净
+          if (Get-LocalUser -Name "admin" -ErrorAction SilentlyContinue) {
+              Remove-LocalUser -Name "admin"
+          }
+          
+          # 创建用户
+          New-LocalUser -Name "admin" -Password $securePass -AccountNeverExpires -PasswordNeverExpires
+          Add-LocalGroupMember -Group "Administrators" -Member "admin"
+          
+          # 4. 配置 SSH 公钥 (针对管理员组)
+          $authKeyPath = "C:\ProgramData\ssh\administrators_authorized_keys"
+          "$env:PUBLIC_KEY_1`n$env:PUBLIC_KEY_2" | Out-File -FilePath $authKeyPath -Encoding ascii
+          
+          # 设置 ACL 权限 (SYSTEM 和 Administrators 完全控制)
+          $acl = Get-Acl $authKeyPath
+          $acl.SetAccessRuleProtection($true, $false)
+          $administrators = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::BuiltinAdministratorsSid, $null)
+          $system = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::LocalSystemSid, $null)
+          $acl.SetOwner($administrators)
+          $acl.SetAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($administrators, "FullControl", "Allow")))
+          $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($system, "FullControl", "Allow")))
+          Set-Acl $authKeyPath $acl
+          
+          # 5. 修改 sshd_config
+          $sshdConfig = "C:\ProgramData\ssh\sshd_config"
+          
+          # 清理旧配置并写入新配置
+          (Get-Content $sshdConfig) | Where-Object { 
+            $_ -notmatch "^PasswordAuthentication" -and 
+            $_ -notmatch "^PubkeyAuthentication" -and 
+            $_ -notmatch "^PermitEmptyPasswords" -and
+            $_ -notmatch "Match Group administrators" -and
+            $_ -notmatch "AuthorizedKeysFile __PROGRAMDATA__"
+          } | Set-Content $sshdConfig
+
+          Add-Content $sshdConfig "`n"
+          Add-Content $sshdConfig "PubkeyAuthentication yes"
+          Add-Content $sshdConfig "PasswordAuthentication yes"
+          Add-Content $sshdConfig "PermitEmptyPasswords no"
+          Add-Content $sshdConfig "Match Group administrators"
+          Add-Content $sshdConfig "       AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys"
+          
+          Restart-Service sshd
+          Write-Host "SSH Setup Complete."
+        shell: powershell
+      
+      - name: Install FRP Tunnel
+        env:
+          FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
+        run: |
+          pip install frp-tunnel
+          Start-Process -NoNewWindow frp-tunnel -ArgumentList "client --server 34.102.78.219 --token $env:FRP_TOKEN --port 6003"
+          Start-Sleep -Seconds 5
+          Write-Host "FRP Tunnel started."
+        shell: powershell
+      
+      - name: Show connection info
+        run: |
+          Write-Host "=========================================="
+          Write-Host "SSH Command: ssh -p 6003 admin@34.102.78.219"
+          Write-Host "Password:    MySecurePass_2024!"
+          Write-Host "=========================================="
+        shell: powershell
+      
+      - name: Keep alive
+        run: |
+          Write-Host "Keeping alive for 6 hours..."
+          $timeout = New-TimeSpan -Hours 6
+          $sw = [System.Diagnostics.Stopwatch]::StartNew()
+          while ($sw.Elapsed -lt $timeout) {
+            Start-Sleep -Seconds 60
+            Write-Host "Alive: $($sw.Elapsed.ToString('hh\:mm\:ss'))"
+          }
+        shell: powershell
+
+优化下
