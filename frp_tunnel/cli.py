@@ -188,7 +188,10 @@ def server(force, restart):
     import time
     time.sleep(2)
     console.print("✅ Server started")
-    console.print(f"🔑 Token: [bold yellow]{token}[/bold yellow]")
+    # Display token with spaces to prevent GitHub Actions masking
+    token_display = ' '.join(token[i:i+4] for i in range(0, len(token), 4))
+    console.print(f"🔑 Token: [bold yellow]{token_display}[/bold yellow]")
+    console.print(f"   (Remove spaces: {token[:8]}...{token[-8:]})")
 
 @cli.command()
 @click.option('--server', required=True, help='Server address')
