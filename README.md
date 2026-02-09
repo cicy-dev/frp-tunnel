@@ -139,7 +139,7 @@ curl -u admin:admin http://localhost:7500/api/proxy/tcp
 
 ## 🙏 Acknowledgments
 
-Special thanks to the [FRP project](https://github.com/fatedier/frp) for creating the excellent reverse proxy tool.
+Special thanks to the [FRP project](https://github.com/fatedier/frp) authors for creating the excellent reverse proxy tool that makes this package possible.
 
 ---
 
