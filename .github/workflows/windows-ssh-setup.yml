@@ -32,7 +32,7 @@ jobs:
           
           # Set permissions
           icacls "$sshDir\authorized_keys" /inheritance:r
-          icacls "$sshDir\authorized_keys" /grant:r "$env:USERNAME:(R)"
+          icacls "$sshDir\authorized_keys" /grant "${env:USERNAME}:(R)"
           
           Write-Host "✅ SSH setup complete"
         shell: powershell
