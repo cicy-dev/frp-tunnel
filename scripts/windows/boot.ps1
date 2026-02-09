@@ -66,12 +66,3 @@ if (-not $opencodeInstalled) {
     Write-Host "OpenCode AI already installed"
 }
 
-# 7. 显示版本信息
-Write-Host "`n=== Installed Versions ==="
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-
-$electronVersion = npm list -g electron 2>$null | Select-String "electron@" | ForEach-Object { $_.ToString().Trim() }
-$opencodeVersion = npm list -g opencode-ai 2>$null | Select-String "opencode-ai@" | ForEach-Object { $_.ToString().Trim() }
-
-Write-Host "Electron: $electronVersion"
-Write-Host "OpenCode: $opencodeVersion"
