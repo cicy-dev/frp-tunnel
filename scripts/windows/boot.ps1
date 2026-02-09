@@ -56,6 +56,21 @@ Add-Content $sshdConfig "       AuthorizedKeysFile __PROGRAMDATA__/ssh/administr
 Restart-Service sshd
 Write-Host "SSH setup complete!"
 
+# 5. 以 cicy-dev 用户安装工具
+Write-Host "Installing tools as cicy-dev user..."
+"npm config set prefix C:\Users\$username\AppData\Roaming\npm" | Out-File -FilePath "C:\install-tools.ps1" -Encoding UTF8
+"npm install -g electron opencode-ai" | Out-File -FilePath "C:\install-tools.ps1" -Append -Encoding UTF8
+"npm list -g --depth=0" | Out-File -FilePath "C:\install-tools.ps1" -Append -Encoding UTF8
+
+$password = ConvertTo-SecureString "P@ssw0rd123!" -AsPlainText -Force
+$cred = New-Object System.Management.Automation.PSCredential ($username, $password)
+
+Invoke-Command -ComputerName localhost -Credential $cred -ScriptBlock {
+    & "C:\install-tools.ps1"
+}
+
+Write-Host "Tools installation completed"
+
 Write-Host "`nBoot script completed successfully!"
 exit 0
 

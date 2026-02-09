@@ -76,27 +76,6 @@ jobs:
           Write-Host "FRP Tunnel started."
         shell: powershell
       
-      - name: Install tools as cicy-dev user
-        run: |
-          # 创建安装脚本
-          $installScript = @"
-          npm config set prefix C:\Users\cicy-dev\AppData\Roaming\npm
-          npm install -g electron opencode-ai
-          npm list -g --depth=0
-"@
-          $installScript | Out-File -FilePath "C:\install-tools.ps1" -Encoding UTF8
-          
-          # 以 cicy-dev 用户执行
-          $password = ConvertTo-SecureString "P@ssw0rd123!" -AsPlainText -Force
-          $cred = New-Object System.Management.Automation.PSCredential ("cicy-dev", $password)
-          
-          Invoke-Command -ComputerName localhost -Credential $cred -ScriptBlock {
-            & "C:\install-tools.ps1"
-          }
-          
-          Write-Host "Tools installation completed"
-        shell: powershell
-      
       - name: Keep alive (10 Minutes)
         run: |
           # 设置时长为 10 分钟
