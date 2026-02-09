@@ -1,7 +1,6 @@
 name: Windows SSH Setup (Final)
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
