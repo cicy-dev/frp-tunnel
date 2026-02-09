@@ -148,10 +148,10 @@ def server(force, restart):
         stop_server()
     
     # Generate config if not exists
+    import yaml
     if not SERVER_YAML.exists():
         console.print("📝 Generating server config...")
         token = gen_token()
-        import yaml
         config = {
             'bindPort': 7000,
             'auth': {'token': token},
@@ -168,7 +168,11 @@ def server(force, restart):
         }
         with open(SERVER_YAML, 'w') as f:
             yaml.dump(config, f, default_flow_style=False)
-        console.print(f"🔑 Token: [bold yellow]{token}[/bold yellow]")
+    
+    # Read token from config
+    with open(SERVER_YAML) as f:
+        config = yaml.safe_load(f)
+        token = config['auth']['token']
     
     # Start server
     console.print("🚀 Starting server...")
@@ -184,6 +188,7 @@ def server(force, restart):
     import time
     time.sleep(2)
     console.print("✅ Server started")
+    console.print(f"🔑 Token: [bold yellow]{token}[/bold yellow]")
 
 @cli.command()
 @click.option('--server', required=True, help='Server address')
