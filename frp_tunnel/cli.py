@@ -145,6 +145,15 @@ def status():
     
     if status_info['server_running']:
         console.print("🖥️  Server: [green]Running[/green]")
+        
+        # Get public IP
+        try:
+            import requests
+            public_ip = requests.get('https://api.myip.com', timeout=3).json().get('ip', 'unknown')
+            console.print(f"   🌐 Public IP: [bold cyan]{public_ip}[/bold cyan]")
+        except:
+            pass
+        
         console.print(f"   📄 Config: [cyan]{config_manager.server_config_path}[/cyan]")
         
         # Show connected clients from server log
