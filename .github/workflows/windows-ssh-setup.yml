@@ -52,9 +52,14 @@ jobs:
               Remove-LocalUser -Name "admin"
           }
           
-          # 创建用户
+          # 创建用户并设置默认目录
           New-LocalUser -Name "admin" -Password $securePass -AccountNeverExpires -PasswordNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member "admin"
+          
+          # 创建 D:\projects 目录并设置为用户主目录
+          New-Item -ItemType Directory -Path "D:\projects" -Force
+          $user = Get-LocalUser -Name "admin"
+          Set-LocalUser -Name "admin" -HomeDirectory "D:\projects"
           
           # 4. 配置 SSH 公钥 (针对管理员组)
           $authKeyPath = "C:\ProgramData\ssh\administrators_authorized_keys"
