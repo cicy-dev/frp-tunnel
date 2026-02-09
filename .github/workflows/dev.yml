@@ -85,8 +85,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path (Split-Path $configDest) | Out-Null
           (Get-Content $configSource) -replace 'REPLACE_WITH_TOKEN', $env:FRP_TOKEN | Set-Content $configDest
           
-          # 下载 FRP 二进制文件
-          frp-tunnel token | Out-Null
+          # 使用 Python 直接调用下载函数
+          python -c "from frp_tunnel.cli import download_frp; download_frp()"
           
           # 直接启动 frpc.exe（后台运行）
           $frpcExe = "$env:USERPROFILE\.frp-tunnel\bin\frpc.exe"
