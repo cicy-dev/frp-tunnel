@@ -55,20 +55,36 @@ heartbeat_timeout = 90
     
     def create_client_config(self, config: Dict[str, Any]) -> Path:
         """Create client configuration file"""
+        # Handle both flat and nested config structures
+        if 'common' in config:
+            server_addr = config['common'].get('server_addr', '127.0.0.1')
+            server_port = config['common'].get('server_port', 7000)
+            token = config['common'].get('token', '')
+            local_port = config.get('ssh', {}).get('local_port', 22)
+            remote_port = config.get('ssh', {}).get('remote_port', 6001)
+            username = config.get('username', 'colab')
+        else:
+            server_addr = config.get('server_addr', '127.0.0.1')
+            server_port = config.get('server_port', 7000)
+            token = config.get('token', '')
+            local_port = config.get('local_port', 22)
+            remote_port = config.get('remote_port', 6001)
+            username = config.get('username', 'colab')
+        
         config_content = f"""[common]
-server_addr = {config['server_addr']}
-server_port = {config.get('server_port', 7000)}
-token = {config['token']}
+server_addr = {server_addr}
+server_port = {server_port}
+token = {token}
 
 # Logging
 log_file = {self.config_dir}/frpc.log
 log_level = info
 
-[ssh_{config.get('username', 'colab')}]
+[ssh_{username}]
 type = tcp
 local_ip = 127.0.0.1
-local_port = 22
-remote_port = {config.get('remote_port', 6001)}
+local_port = {local_port}
+remote_port = {remote_port}
 """
         
         with open(self.client_config_path, 'w') as f:
