@@ -151,38 +151,64 @@ authentication_method = token
 @cli.command()
 @click.option('--server', required=True, help='Server address')
 @click.option('--token', required=True, help='Authentication token')
-@click.option('--port', required=True, type=int, help='Remote port to forward')
+@click.option('--port', multiple=True, type=int, help='Remote port(s) to expose (can specify multiple times)')
 def client(server, token, port):
     """Start FRP client
     
     Examples:
-      frp-tunnel client --server 1.2.3.4 --token xxx --port 6000
+      frp-tunnel client --server 1.2.3.4 --token xxx --port 6003
+      frp-tunnel client --server 1.2.3.4 --token xxx --port 6003 --port 6004
       
     Note: Configure additional ports in frpc.ini manually
     """
     download_frp()
     
-    # Generate client config with single port
-    config = f"""[common]
-server_addr = {server}
-server_port = 7000
-token = {token}
-log_file = {DATA_DIR}/frpc.log
-log_level = info
-login_fail_exit = false
-
-[ssh_{port}]
-type = tcp
-local_ip = 127.0.0.1
-local_port = 22
-remote_port = {port}
-"""
+    # Convert single port to tuple if needed
+    if not port:
+        console.print("❌ Error: At least one --port is required", style="red")
+        return
     
+    # Generate client config with multiple ports
+    config_lines = [
+        "[common]",
+        f"server_addr = {server}",
+        "server_port = 7000",
+        f"token = {token}",
+        f"log_file = {DATA_DIR}/frpc.log",
+        "log_level = info",
+        "login_fail_exit = false",
+        ""
+    ]
+    
+    # Add SSH port (first port)
+    config_lines.extend([
+        f"[ssh_{port[0]}]",
+        "type = tcp",
+        "local_ip = 127.0.0.1",
+        "local_port = 22",
+        f"remote_port = {port[0]}",
+        ""
+    ])
+    
+    # Add additional ports (RDP, etc.)
+    for p in port[1:]:
+        service_name = "rdp" if "04" in str(p) or p == 3389 else "service"
+        local_port = 3389 if service_name == "rdp" else p
+        config_lines.extend([
+            f"[{service_name}_{p}]",
+            "type = tcp",
+            "local_ip = 127.0.0.1",
+            f"local_port = {local_port}",
+            f"remote_port = {p}",
+            ""
+        ])
+    
+    config = "\n".join(config_lines)
     CLIENT_INI.write_text(config)
     
     # Start client
-    console.print(f"🚀 Starting client (port: {port})...")
-    console.print(f"💡 Add more ports in: {CLIENT_INI}")
+    ports_str = ", ".join(str(p) for p in port)
+    console.print(f"🚀 Starting client (ports: {ports_str})...")
     frpc = BIN_DIR / ('frpc.exe' if sys.platform == 'win32' else 'frpc')
     
     if sys.platform == 'win32':

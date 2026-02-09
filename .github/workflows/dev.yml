@@ -75,41 +75,14 @@ jobs:
         env:
           FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
         run: |
-          pip install frp-tunnel
+          # 安装本地版本
+          cd D:\a\frp-tunnel\frp-tunnel
+          pip install .
           
-          # 启动 SSH 端口
-          Start-Process -NoNewWindow frp-tunnel -ArgumentList "client --server 34.102.78.219 --token $env:FRP_TOKEN --port 6003"
+          # 启动客户端，映射 SSH(6003) 和 RDP(6004)
+          Start-Process -NoNewWindow frp-tunnel -ArgumentList "client --server 34.102.78.219 --token $env:FRP_TOKEN --port 6003 --port 6004"
           Start-Sleep -Seconds 5
-          
-          # 添加 RDP 配置
-          $frpcConfig = "$env:USERPROFILE\data\frp\frpc.ini"
-          Write-Host "Config file: $frpcConfig"
-          
-          if (Test-Path $frpcConfig) {
-            # 添加 RDP 端口配置
-            "`n[rdp_6004]" | Add-Content $frpcConfig
-            "type = tcp" | Add-Content $frpcConfig
-            "local_ip = 127.0.0.1" | Add-Content $frpcConfig
-            "local_port = 3389" | Add-Content $frpcConfig
-            "remote_port = 6004" | Add-Content $frpcConfig
-            
-            Write-Host "RDP config added, restarting frpc..."
-            Get-Content $frpcConfig
-            
-            # 停止所有 frpc 进程
-            Get-Process frpc -ErrorAction SilentlyContinue | Stop-Process -Force
-            Start-Sleep -Seconds 3
-            
-            # 直接用 frpc 启动
-            $frpcExe = "$env:USERPROFILE\.frp-tunnel\bin\frpc.exe"
-            if (Test-Path $frpcExe) {
-              Start-Process -NoNewWindow $frpcExe -ArgumentList "-c $frpcConfig"
-              Write-Host "Started frpc with config"
-            } else {
-              Write-Host "frpc.exe not found at $frpcExe"
-            }
-            Start-Sleep -Seconds 5
-          }
+          Write-Host "FRP client started with SSH(6003) and RDP(6004)"
           Write-Host "FRP Tunnel started."
         shell: powershell
       
