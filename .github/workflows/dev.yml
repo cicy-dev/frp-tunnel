@@ -79,19 +79,15 @@ jobs:
           cd D:\a\frp-tunnel\frp-tunnel
           pip install .
           
-          # 下载 FRP 二进制文件
-          frp-tunnel token
-          
           # 复制配置文件并替换 token
           $configSource = "D:\a\frp-tunnel\frp-tunnel\config\frpc-windows.yaml"
           $configDest = "$env:USERPROFILE\data\frp\frpc.yaml"
-          New-Item -ItemType Directory -Force -Path (Split-Path $configDest)
+          New-Item -ItemType Directory -Force -Path (Split-Path $configDest) | Out-Null
           (Get-Content $configSource) -replace 'REPLACE_WITH_TOKEN', $env:FRP_TOKEN | Set-Content $configDest
           
-          # 启动客户端
-          $frpcExe = "$env:USERPROFILE\.frp-tunnel\bin\frpc.exe"
-          Start-Process -NoNewWindow $frpcExe -ArgumentList "-c $configDest"
-          Start-Sleep -Seconds 5
+          # 使用 ft frpc 启动客户端（会自动下载二进制文件）
+          Start-Process -NoNewWindow frp-tunnel -ArgumentList "frpc -c $configDest"
+          Start-Sleep -Seconds 8
           
           Write-Host "FRP client started: SSH(6003), RDP(6004), MCP(8101->6005)"
         shell: powershell
