@@ -3,6 +3,7 @@
 FRP Tunnel CLI - Easy SSH tunneling with FRP
 """
 
+import sys
 import click
 from rich.console import Console
 from rich.panel import Panel
@@ -11,6 +12,12 @@ from .core.installer import install_binaries
 from .core.tunnel import TunnelManager
 from .core.platform import detect_platform, is_colab
 from .core.config import ConfigManager
+
+# Force UTF-8 encoding on Windows
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 console = Console()
 tunnel_manager = TunnelManager()
