@@ -5,47 +5,46 @@
 pip install frp-tunnel
 ```
 
-## Server Setup (GCP/VPS)
+## Server Setup (One-time)
 ```bash
-# Interactive setup
-frp-tunnel setup
+# Auto-generates token and config
+frp-tunnel server
 
-# Or direct command
-frp-tunnel setup --mode server
+# Output shows your token - save it!
 ```
 
-## Google Colab (One-liner)
-```python
-# In Colab notebook cell
-!pip install frp-tunnel && frp-tunnel colab --server YOUR_IP --token YOUR_TOKEN
-```
-
-## Local Client
+## Client Connection
 ```bash
-# Interactive setup
-frp-tunnel setup --mode client
+# Connect to server
+frp-tunnel client --server YOUR_SERVER_IP --token YOUR_TOKEN --port 6000
 
-# Or direct command
-frp-tunnel client --server YOUR_IP --token YOUR_TOKEN --port 6001
+# Then SSH normally
+ssh -p 6000 user@YOUR_SERVER_IP
 ```
 
 ## Status and Management
 ```bash
-# Check status
-frp-tunnel status
+# Check server status
+frp-tunnel server-status
 
-# View logs
-frp-tunnel logs
+# Check client status
+frp-tunnel client-status
 
-# Stop all tunnels
+# Stop all
 frp-tunnel stop
 
-# Clean cache
-frp-tunnel clean
+# Restart server
+frp-tunnel server -r
 ```
 
-## SSH Connection
+## Advanced
 ```bash
-# After setup, connect via SSH
-ssh -p 6001 colab@YOUR_SERVER_IP
+# Generate new token
+frp-tunnel token
+
+# Show version
+frp-tunnel version
+
+# Force restart server
+frp-tunnel server -f
 ```
