@@ -52,6 +52,8 @@ Add-Content $sshdConfig "`nPubkeyAuthentication yes"
 Add-Content $sshdConfig "PasswordAuthentication no"
 Add-Content $sshdConfig "Match Group administrators"
 Add-Content $sshdConfig "       AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys"
+Add-Content $sshdConfig "Match User $username"
+Add-Content $sshdConfig "       ForceCommand powershell.exe -NoProfile -Command `"Set-Location D:\projects; powershell.exe -NoExit`""
 
 Restart-Service sshd
 Write-Host "SSH setup complete!"
