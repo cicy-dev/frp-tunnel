@@ -53,9 +53,9 @@ Add-Content $sshdConfig "PasswordAuthentication no"
 Add-Content $sshdConfig "Match Group administrators"
 Add-Content $sshdConfig "       AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys"
 
-# 配置默认 shell 为 PowerShell 并设置启动目录
-Add-Content $sshdConfig "`nMatch User $username"
-Add-Content $sshdConfig "       ForceCommand powershell.exe -NoLogo -NoProfile -Command `"Set-Location D:\projects; `$host.UI.RawUI.WindowTitle='SSH - D:\projects'; powershell.exe -NoExit`""
+# 配置用户 bash profile 自动切换目录
+$bashProfile = "C:\Users\$username\.bash_profile"
+"cd /d/projects" | Out-File -FilePath $bashProfile -Encoding ascii
 
 Restart-Service sshd
 Write-Host "SSH setup complete!"
