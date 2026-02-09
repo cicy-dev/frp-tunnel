@@ -3,7 +3,7 @@ name: Windows SSH Setup
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ dev ]
 
 jobs:
   setup-ssh:
@@ -21,6 +21,11 @@ jobs:
           Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
           Start-Service sshd
           Set-Service -Name sshd -StartupType 'Automatic'
+          
+          # 1.5 启用 RDP
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -Value 1
           
           # 2. 关键步骤：禁用密码复杂度策略
           # 导出当前策略 -> 修改 -> 导入
@@ -89,23 +94,21 @@ jobs:
           Start-Sleep -Seconds 5
           Write-Host "FRP Tunnel started."
         shell: powershell
-      
-      - name: Show connection info
+      - name: Keep alive (10 Minutes)
         run: |
-          Write-Host "=========================================="
-          Write-Host "SSH Command: ssh -p 6003 admin@34.102.78.219"
-          Write-Host "Password:    MySecurePass_2024!"
-          Write-Host "=========================================="
-        shell: powershell
-      
-      - name: Keep alive
-        run: |
-          Write-Host "Keeping alive for 6 hours..."
-          $timeout = New-TimeSpan -Hours 6
+          # 设置时长为 10 分钟
+          $timeout = New-TimeSpan -Minutes 10
           $sw = [System.Diagnostics.Stopwatch]::StartNew()
+          
+          Write-Host "Keeping runner alive for 10 minutes..."
+          
           while ($sw.Elapsed -lt $timeout) {
+            # 缩短日志刷新频率，每 1 分钟打印一次，避免日志过于冗长
             Start-Sleep -Seconds 60
-            Write-Host "Alive: $($sw.Elapsed.ToString('hh\:mm\:ss'))"
+            $timeLeft = $timeout - $sw.Elapsed
+            Write-Host "Remaining: $($timeLeft.ToString('mm\:ss')) | Elapsed: $($sw.Elapsed.ToString('mm\:ss'))"
           }
+          
+          Write-Host "10 minutes session completed."
         shell: powershell
         
