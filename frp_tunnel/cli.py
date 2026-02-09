@@ -112,7 +112,6 @@ def server(force, restart):
     if is_running('frps'):
         if not force and not restart:
             console.print("⚠️  Server already running")
-            show_status()
             return
         console.print("🔄 Stopping server...")
         stop_server()
@@ -148,7 +147,6 @@ authentication_method = token
     import time
     time.sleep(2)
     console.print("✅ Server started")
-    show_status()
 
 @cli.command()
 @click.option('--server', required=True, help='Server address')
@@ -221,16 +219,10 @@ def stop_client():
     else:
         subprocess.run(['pkill', '-9', 'frpc'], capture_output=True)
 
-@cli.command()
-def status():
-    """Show tunnel status"""
-    show_status()
-
-def show_status():
-    """Display status"""
-    console.print("\n📊 Tunnel Status")
-    
-    # Server status
+@cli.command('server-status')
+def server_status():
+    """Show server status"""
+    console.print("\n📊 Server Status")
     if is_running('frps'):
         console.print("🖥️  Server: [green]Running[/green]")
         ip = get_public_ip()
@@ -245,10 +237,13 @@ def show_status():
             console.print(f"   🔧 Binary: [cyan]{frps_bin}[/cyan]")
     else:
         console.print("🖥️  Server: [red]Stopped[/red]")
-    
-    # Client status
+    console.print()
+
+@cli.command('client-status')
+def client_status():
+    """Show client status"""
+    console.print("\n📊 Client Status")
     if is_running('frpc'):
-        # Count client processes
         try:
             if sys.platform == 'win32':
                 result = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq frpc.exe'], 
@@ -274,7 +269,6 @@ def show_status():
             console.print(f"   🔧 Binary: [cyan]{frpc_bin}[/cyan]")
     else:
         console.print("📱 Client: [red]Disconnected[/red]")
-    
     console.print()
 
 def main():
