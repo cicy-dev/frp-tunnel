@@ -34,6 +34,15 @@ jobs:
           frp-tunnel client-status
         shell: powershell
       
+      - name: Monitor Connection (1 min)
+        run: |
+          for ($i=1; $i -le 6; $i++) {
+            Write-Host "[$i/6] Checking connection..."
+            frp-tunnel client-status
+            Start-Sleep -Seconds 10
+          }
+        shell: powershell
+      
       - name: Test Connection
         run: |
           netstat -an | findstr "7000"
