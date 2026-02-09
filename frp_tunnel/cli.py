@@ -181,11 +181,22 @@ def install():
     console.print("✅ Installation complete")
 
 @cli.command()
-@click.option('--component', type=click.Choice(['server', 'client']), required=True, help='Component to start')
-def start(component):
+@click.option('--component', type=click.Choice(['server', 'client', 'both']), required=True, help='Component to start')
+@click.option('--server', help='Server address (for client mode)')
+@click.option('--token', help='Authentication token')
+@click.option('--port', type=int, default=6001, help='Remote port for SSH')
+@click.option('--local-port', type=int, default=22, help='Local SSH port')
+def start(component, server, token, port, local_port):
     """Start FRP server or client"""
-    if component == 'server':
+    if component in ['server', 'both']:
         config = config_manager.get_server_config()
+        
+        # Override with command line args if provided
+        if token and config:
+            if 'common' not in config:
+                config['common'] = {}
+            config['common']['token'] = token
+        
         if not config:
             console.print("❌ No server configuration found. Run 'frp-tunnel setup server' first.")
             return
@@ -195,14 +206,44 @@ def start(component):
         else:
             console.print("❌ Failed to start server")
     
-    elif component == 'client':
+    if component in ['client', 'both']:
         config = config_manager.get_client_config()
+        
+        # Override with command line args if provided
+        if server or token or port != 6001 or local_port != 22:
+            if not config:
+                config = {
+                    'common': {
+                        'server_port': 7000
+                    },
+                    'ssh': {
+                        'type': 'tcp',
+                        'local_ip': '127.0.0.1',
+                        'local_port': local_port,
+                        'remote_port': port
+                    }
+                }
+            else:
+                if 'common' not in config:
+                    config['common'] = {}
+                if 'ssh' not in config:
+                    config['ssh'] = {'type': 'tcp', 'local_ip': '127.0.0.1'}
+            
+            if server:
+                config['common']['server_addr'] = server
+            if token:
+                config['common']['token'] = token
+            if port != 6001:
+                config['ssh']['remote_port'] = port
+            if local_port != 22:
+                config['ssh']['local_port'] = local_port
+        
         if not config:
             console.print("❌ No client configuration found. Run 'frp-tunnel setup client' first.")
             return
         
         if tunnel_manager.start_client(config):
-            console.print("✅ Client started successfully!")
+            console.print("✅ Client connected successfully!")
         else:
             console.print("❌ Failed to start client")
 
