@@ -250,6 +250,49 @@ def server_status():
         
         if count > 0:
             console.print(f"   👥 Active clients: [green]{count}[/green]")
+            
+            # Parse log for client details
+            if log_file.exists():
+                import re
+                from datetime import datetime, timedelta
+                clients = {}
+                now = datetime.now()
+                
+                try:
+                    with open(log_file, 'r') as f:
+                        for line in f.readlines()[-100:]:
+                            # Parse timestamp
+                            time_match = re.match(r'(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})', line)
+                            if not time_match:
+                                continue
+                            
+                            log_time = datetime.strptime(time_match.group(1), '%Y/%m/%d %H:%M:%S')
+                            
+                            # Only last 5 minutes
+                            if (now - log_time).total_seconds() > 300:
+                                continue
+                            
+                            # Match: [client_id] client login info: ip [x.x.x.x:port]
+                            match = re.search(r'\[([a-f0-9]+)\].*client login info: ip \[([^\]]+)\]', line)
+                            if match:
+                                client_id = match.group(1)[:8]
+                                client_ip = match.group(2)
+                                clients[client_id] = {'ip': client_ip, 'ports': []}
+                            
+                            # Match: [client_id] tcp proxy listen port [xxxx]
+                            match = re.search(r'\[([a-f0-9]+)\].*tcp proxy listen port \[(\d+)\]', line)
+                            if match:
+                                client_id = match.group(1)[:8]
+                                port = match.group(2)
+                                if client_id in clients and port not in clients[client_id]['ports']:
+                                    clients[client_id]['ports'].append(port)
+                    
+                    if clients:
+                        for client_id, info in clients.items():
+                            ports_str = ', '.join(info['ports']) if info['ports'] else 'none'
+                            console.print(f"      • {client_id}: {info['ip']} → ports [{ports_str}]")
+                except:
+                    pass
         else:
             console.print(f"   👥 Active clients: [yellow]0[/yellow]")
     else:
