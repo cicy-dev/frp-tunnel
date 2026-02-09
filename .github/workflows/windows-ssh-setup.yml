@@ -25,15 +25,21 @@ jobs:
               New-NetFirewallRule -Name 'OpenSSH-Server-In-TCP' -DisplayName 'OpenSSH Server (sshd)' -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
           }
           
+          # Configure SSH
+          $sshdConfig = "C:\ProgramData\ssh\sshd_config"
+          Add-Content -Path $sshdConfig -Value "`nPubkeyAuthentication yes"
+          Add-Content -Path $sshdConfig -Value "PasswordAuthentication no"
+          
           # Add SSH keys
           $sshDir = "$env:USERPROFILE\.ssh"
           New-Item -ItemType Directory -Path $sshDir -Force | Out-Null
           $env:SSH_PUBLIC_KEYS | Out-File -FilePath "$sshDir\authorized_keys" -Encoding ASCII -NoNewline
           
-          # Fix permissions for OpenSSH
-          icacls "$sshDir\authorized_keys" /inheritance:r
-          icacls "$sshDir\authorized_keys" /grant:r "${env:USERNAME}:(F)"
-          icacls "$sshDir\authorized_keys" /grant:r "SYSTEM:(F)"
+          # Fix permissions
+          icacls "$sshDir" /inheritance:r
+          icacls "$sshDir" /grant:r "${env:USERNAME}:(OI)(CI)F"
+          icacls "$sshDir\authorized_keys" /inheritance:r  
+          icacls "$sshDir\authorized_keys" /grant:r "${env:USERNAME}:F"
           
           # Restart SSH service
           Restart-Service sshd
