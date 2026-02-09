@@ -33,11 +33,20 @@ frp-tunnel server
 
 ### Connect Client
 ```bash
-# Connect to server
-frp-tunnel client --server YOUR_SERVER_IP --token YOUR_TOKEN --port 6000
+# First time - specify server and token
+frp-tunnel client --server YOUR_SERVER_IP --token YOUR_TOKEN --port 6003
+
+# Multiple ports (SSH + RDP)
+frp-tunnel client --server YOUR_SERVER_IP --token YOUR_TOKEN --port 6003 --port 6004
+
+# Add more ports later (reuses existing config)
+frp-tunnel client-add-port 6005 6006
+
+# Remove ports
+frp-tunnel client-remove-port 6005
 
 # Then SSH normally
-ssh -p 6000 user@YOUR_SERVER_IP
+ssh -p 6003 user@YOUR_SERVER_IP
 ```
 
 ## 🎮 Commands
@@ -50,8 +59,10 @@ frp-tunnel server -r           # Restart
 frp-tunnel server-status       # Show server status
 
 # Client
-frp-tunnel client --server IP --token TOKEN --port 6000
-frp-tunnel client-status       # Show client status
+frp-tunnel client --server IP --token TOKEN --port 6003 --port 6004
+frp-tunnel client-add-port 6005 6006    # Add ports to existing config
+frp-tunnel client-remove-port 6005      # Remove ports
+frp-tunnel client-status                # Show client status
 
 # Utilities
 frp-tunnel token               # Generate new token
@@ -93,19 +104,27 @@ server_addr = YOUR_SERVER_IP
 server_port = 7000
 token = frp_your_token_here
 
-[ssh_6000]
+[ssh_6003]
 type = tcp
 local_ip = 127.0.0.1
 local_port = 22
-remote_port = 6000
+remote_port = 6003
+
+[rdp_6004]
+type = tcp
+local_ip = 127.0.0.1
+local_port = 3389
+remote_port = 6004
 ```
 
-Add more ports by editing the config file manually.
+Use `client-add-port` and `client-remove-port` commands to manage ports easily.
 
 ## 🌟 Features
 
 - ✅ **Auto-download** FRP binaries (no manual installation)
 - ✅ **Auto-generate** token and config
+- ✅ **Multiple ports** - SSH, RDP, or any service
+- ✅ **Easy port management** - add/remove ports without editing config
 - ✅ **Background mode** - runs as daemon
 - ✅ **Multi-platform** - Windows, Linux, macOS
 - ✅ **Dashboard** - Web UI at port 7500
@@ -114,13 +133,15 @@ Add more ports by editing the config file manually.
 ## 🛠️ Advanced Usage
 
 ### Multiple Ports
-Edit `~/data/frp/frpc.ini` to add more ports:
-```ini
-[ssh_6001]
-type = tcp
-local_ip = 127.0.0.1
-local_port = 22
-remote_port = 6001
+Use commands to manage ports easily:
+```bash
+# Add multiple ports at once
+frp-tunnel client-add-port 6005 6006 6007
+
+# Remove specific ports
+frp-tunnel client-remove-port 6005
+
+# Or edit config manually: ~/data/frp/frpc.ini
 ```
 
 ### Dashboard Access

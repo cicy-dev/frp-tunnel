@@ -149,24 +149,65 @@ authentication_method = token
     console.print("✅ Server started")
 
 @cli.command()
-@click.option('--server', required=True, help='Server address')
-@click.option('--token', required=True, help='Authentication token')
-@click.option('--port', multiple=True, type=int, help='Remote port(s) to expose (can specify multiple times)')
-def client(server, token, port):
+@click.option('--server', help='Server address (required for first time)')
+@click.option('--token', help='Authentication token (required for first time)')
+@click.option('--port', multiple=True, type=int, help='Remote port(s) to add')
+@click.option('--remove', multiple=True, type=int, help='Remote port(s) to remove')
+def client(server, token, port, remove):
     """Start FRP client
     
     Examples:
-      frp-tunnel client --server 1.2.3.4 --token xxx --port 6003
+      # First time - specify server and token
       frp-tunnel client --server 1.2.3.4 --token xxx --port 6003 --port 6004
+      
+      # Add more ports
+      frp-tunnel client --port 6005
+      
+      # Remove ports
+      frp-tunnel client --remove 6005
       
     Note: Configure additional ports in frpc.ini manually
     """
     download_frp()
     
-    # Convert single port to tuple if needed
-    if not port:
-        console.print("❌ Error: At least one --port is required", style="red")
+    # Check if config exists
+    existing_config = {}
+    if CLIENT_INI.exists():
+        import configparser
+        parser = configparser.ConfigParser()
+        parser.read(CLIENT_INI)
+        if 'common' in parser:
+            existing_config = {
+                'server': parser['common'].get('server_addr'),
+                'token': parser['common'].get('token'),
+                'ports': [int(s.split('_')[1]) for s in parser.sections() if s != 'common']
+            }
+    
+    # Use existing config if not provided
+    if not server and existing_config.get('server'):
+        server = existing_config['server']
+    if not token and existing_config.get('token'):
+        token = existing_config['token']
+    
+    # Validate required params
+    if not server or not token:
+        console.print("❌ Error: --server and --token required for first time setup", style="red")
         return
+    
+    if not port and not remove:
+        console.print("❌ Error: Specify --port to add or --remove to remove", style="red")
+        return
+    
+    # Merge with existing ports
+    all_ports = set(existing_config.get('ports', []))
+    all_ports.update(port)
+    all_ports -= set(remove)
+    
+    if not all_ports:
+        console.print("❌ Error: At least one port must remain", style="red")
+        return
+    
+    all_ports = sorted(list(all_ports))
     
     # Generate client config with multiple ports
     config_lines = [
@@ -182,16 +223,16 @@ def client(server, token, port):
     
     # Add SSH port (first port)
     config_lines.extend([
-        f"[ssh_{port[0]}]",
+        f"[ssh_{all_ports[0]}]",
         "type = tcp",
         "local_ip = 127.0.0.1",
         "local_port = 22",
-        f"remote_port = {port[0]}",
+        f"remote_port = {all_ports[0]}",
         ""
     ])
     
     # Add additional ports (RDP, etc.)
-    for p in port[1:]:
+    for p in all_ports[1:]:
         service_name = "rdp" if "04" in str(p) or p == 3389 else "service"
         local_port = 3389 if service_name == "rdp" else p
         config_lines.extend([
@@ -207,7 +248,9 @@ def client(server, token, port):
     CLIENT_INI.write_text(config)
     
     # Start client
-    ports_str = ", ".join(str(p) for p in port)
+    ports_str = ", ".join(str(p) for p in all_ports)
+    if remove:
+        console.print(f"🗑️  Removed ports: {', '.join(str(p) for p in remove)}")
     console.print(f"🚀 Starting client (ports: {ports_str})...")
     frpc = BIN_DIR / ('frpc.exe' if sys.platform == 'win32' else 'frpc')
     
@@ -221,6 +264,70 @@ def client(server, token, port):
     import time
     time.sleep(2)
     console.print("✅ Client started")
+
+@cli.command('client-add-port')
+@click.argument('ports', nargs=-1, type=int, required=True)
+def client_add_port(ports):
+    """Add port(s) to existing client config
+    
+    Examples:
+      frp-tunnel client-add-port 6005
+      frp-tunnel client-add-port 6005 6006 6007
+    """
+    if not CLIENT_INI.exists():
+        console.print("❌ Error: No existing config. Run 'frp-tunnel client' first", style="red")
+        return
+    
+    # Read existing config
+    import configparser
+    parser = configparser.ConfigParser()
+    parser.read(CLIENT_INI)
+    
+    server = parser['common']['server_addr']
+    token = parser['common']['token']
+    existing_ports = [int(s.split('_')[1]) for s in parser.sections() if s != 'common']
+    
+    # Add new ports
+    all_ports = sorted(list(set(existing_ports + list(ports))))
+    
+    # Regenerate config
+    from click import Context
+    ctx = Context(client)
+    ctx.invoke(client, server=server, token=token, port=all_ports, remove=())
+
+@cli.command('client-remove-port')
+@click.argument('ports', nargs=-1, type=int, required=True)
+def client_remove_port(ports):
+    """Remove port(s) from existing client config
+    
+    Examples:
+      frp-tunnel client-remove-port 6005
+      frp-tunnel client-remove-port 6005 6006
+    """
+    if not CLIENT_INI.exists():
+        console.print("❌ Error: No existing config", style="red")
+        return
+    
+    # Read existing config
+    import configparser
+    parser = configparser.ConfigParser()
+    parser.read(CLIENT_INI)
+    
+    server = parser['common']['server_addr']
+    token = parser['common']['token']
+    existing_ports = [int(s.split('_')[1]) for s in parser.sections() if s != 'common']
+    
+    # Remove ports
+    all_ports = sorted(list(set(existing_ports) - set(ports)))
+    
+    if not all_ports:
+        console.print("❌ Error: Cannot remove all ports", style="red")
+        return
+    
+    # Regenerate config
+    from click import Context
+    ctx = Context(client)
+    ctx.invoke(client, server=server, token=token, port=all_ports, remove=())
 
 @cli.command()
 def stop():
