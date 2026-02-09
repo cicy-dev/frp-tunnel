@@ -248,7 +248,23 @@ def show_status():
     
     # Client status
     if is_running('frpc'):
-        console.print("📱 Client: [green]Connected[/green]")
+        # Count client processes
+        try:
+            if sys.platform == 'win32':
+                result = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq frpc.exe'], 
+                                      capture_output=True, text=True)
+                count = result.stdout.count('frpc.exe')
+            else:
+                result = subprocess.run(['pgrep', '-c', 'frpc'], capture_output=True, text=True)
+                count = int(result.stdout.strip()) if result.returncode == 0 else 1
+        except:
+            count = 1
+        
+        if count > 1:
+            console.print(f"📱 Clients: [green]{count} Connected[/green]")
+        else:
+            console.print("📱 Client: [green]Connected[/green]")
+        
         console.print(f"   📄 Config: [cyan]{CLIENT_INI}[/cyan]")
         log_file = DATA_DIR / 'frpc.log'
         if log_file.exists():
