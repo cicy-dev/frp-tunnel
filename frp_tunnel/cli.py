@@ -188,21 +188,21 @@ def status():
                         if match:
                             client_id = match.group(1)[:8]
                             client_ip = match.group(2)
-                            clients[client_id] = {'ip': client_ip, 'time': log_time}
+                            clients[client_id] = {'ip': client_ip, 'time': log_time, 'ports': []}
                         
                         # Match: [client_id] tcp proxy listen port [xxxx]
                         match = re.search(r'\[([a-f0-9]+)\].*tcp proxy listen port \[(\d+)\]', line)
                         if match:
                             client_id = match.group(1)[:8]
                             port = match.group(2)
-                            if client_id in clients:
-                                clients[client_id]['port'] = port
+                            if client_id in clients and port not in clients[client_id]['ports']:
+                                clients[client_id]['ports'].append(port)
                 
                 if clients:
                     console.print(f"   👥 Active clients: {len(clients)}")
                     for client_id, info in clients.items():
-                        port_info = f" → port {info['port']}" if 'port' in info else ""
-                        console.print(f"      • {client_id}: {info['ip']}{port_info}")
+                        ports_info = f" → ports {', '.join(info['ports'])}" if info['ports'] else ""
+                        console.print(f"      • {client_id}: {info['ip']}{ports_info}")
             except:
                 pass
         
