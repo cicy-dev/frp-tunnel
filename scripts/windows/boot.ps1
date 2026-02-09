@@ -8,15 +8,17 @@ Set-Service -Name sshd -StartupType 'Automatic'
 
 # 2. 创建用户
 Write-Host "Creating SSH user..."
+$username = if ($env:SSH_USERNAME) { $env:SSH_USERNAME } else { "cicy-dev" }
 $password = "P@ssw0rd123!"
 $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
-if (Get-LocalUser -Name "sshuser" -ErrorAction SilentlyContinue) {
-    Remove-LocalUser -Name "sshuser"
+if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
+    Remove-LocalUser -Name $username
 }
 
-New-LocalUser -Name "sshuser" -Password $securePass -AccountNeverExpires -PasswordNeverExpires
-Add-LocalGroupMember -Group "Administrators" -Member "sshuser"
+New-LocalUser -Name $username -Password $securePass -AccountNeverExpires -PasswordNeverExpires
+Add-LocalGroupMember -Group "Administrators" -Member $username
+Write-Host "Created user: $username"
 
 # 3. 配置 SSH 公钥（管理员组）
 Write-Host "Configuring SSH keys..."
@@ -43,3 +45,28 @@ Add-Content $sshdConfig "       AuthorizedKeysFile __PROGRAMDATA__/ssh/administr
 
 Restart-Service sshd
 Write-Host "SSH setup complete!"
+
+# 5. 检查并安装 Electron
+Write-Host "Checking Electron..."
+$electronInstalled = npm list -g electron 2>$null
+if (-not $electronInstalled) {
+    Write-Host "Installing Electron globally..."
+    npm install -g electron
+} else {
+    Write-Host "Electron already installed"
+}
+
+# 6. 检查并安装 OpenCode AI
+Write-Host "Checking OpenCode AI..."
+$opencodeInstalled = npm list -g opencode-ai 2>$null
+if (-not $opencodeInstalled) {
+    Write-Host "Installing OpenCode AI globally..."
+    npm install -g opencode-ai
+} else {
+    Write-Host "OpenCode AI already installed"
+}
+
+# 7. 显示版本信息
+Write-Host "`n=== Installed Versions ==="
+electron -v
+opencode -v
