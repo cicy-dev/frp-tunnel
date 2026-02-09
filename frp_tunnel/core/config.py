@@ -16,15 +16,25 @@ class ConfigManager:
     
     def create_server_config(self, config: Dict[str, Any]) -> Path:
         """Create server configuration file"""
-        # Use provided token or generate new one
-        token = config.get('token') or self._generate_token()
+        # Preserve existing config if it exists
+        existing_config = {}
+        if self.server_config_path.exists():
+            parser = configparser.ConfigParser()
+            parser.read(self.server_config_path)
+            if 'common' in parser:
+                existing_config = dict(parser['common'])
+        
+        # Use provided token or existing token or generate new one
+        token = config.get('token') or existing_config.get('token') or self._generate_token()
+        bind_port = config.get('bind_port', existing_config.get('bind_port', 7000))
+        dashboard_port = existing_config.get('dashboard_port', 7500)
         
         config_content = f"""[common]
-bind_port = {config.get('bind_port', 7000)}
+bind_port = {bind_port}
 token = {token}
 
 # Dashboard (optional)
-dashboard_port = 7500
+dashboard_port = {dashboard_port}
 dashboard_user = admin
 dashboard_pwd = admin
 

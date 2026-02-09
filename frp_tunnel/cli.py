@@ -61,7 +61,7 @@ def setup_server(force=False):
     
     # Check if config exists and get existing token
     existing_config = config_manager.get_server_config()
-    existing_token = existing_config.get('common', {}).get('token', '') if existing_config else ''
+    existing_token = existing_config.get('token', '') if existing_config else ''
     
     if existing_token and not force:
         console.print(f"🔑 Using existing token: [bold yellow]{existing_token}[/bold yellow]")
@@ -84,7 +84,8 @@ def setup_server(force=False):
         'bind_port': port,
         'token': token
     }
-    config_manager.create_server_config(config)
+    config_path = config_manager.create_server_config(config)
+    console.print(f"📄 Config: [cyan]{config_path}[/cyan]")
     
     # Start server
     if click.confirm('Start server now?', default=True):
@@ -144,11 +145,13 @@ def status():
     
     if status_info['server_running']:
         console.print("🖥️  Server: [green]Running[/green]")
+        console.print(f"   📄 Config: [cyan]{config_manager.server_config_path}[/cyan]")
     else:
         console.print("🖥️  Server: [red]Stopped[/red]")
     
     if status_info['client_running']:
         console.print("📱 Client: [green]Connected[/green]")
+        console.print(f"   📄 Config: [cyan]{config_manager.client_config_path}[/cyan]")
     else:
         console.print("📱 Client: [red]Disconnected[/red]")
 
@@ -196,6 +199,7 @@ def start(component, server, token, port, local_port):
             console.print("❌ No server configuration found. Run 'frp-tunnel setup server' first.")
             return
         
+        console.print(f"📄 Server config: [cyan]{config_manager.server_config_path}[/cyan]")
         if tunnel_manager.start_server(config):
             console.print("✅ Server started successfully!")
         else:
@@ -237,6 +241,7 @@ def start(component, server, token, port, local_port):
             console.print("❌ No client configuration found. Run 'frp-tunnel setup client' first.")
             return
         
+        console.print(f"📄 Client config: [cyan]{config_manager.client_config_path}[/cyan]")
         if tunnel_manager.start_client(config):
             console.print("✅ Client connected successfully!")
         else:
