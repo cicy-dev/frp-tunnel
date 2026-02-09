@@ -121,5 +121,3 @@ jobs:
             Write-Host "Alive: $($sw.Elapsed.ToString('hh\:mm\:ss'))"
           }
         shell: powershell
-
-优化下
