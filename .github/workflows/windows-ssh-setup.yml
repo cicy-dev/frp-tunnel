@@ -13,7 +13,7 @@ jobs:
       - name: Setup OpenSSH & Keys
         env:
           FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
-          # 请替换为你真实的公钥
+          SSH_USER: "admin"
           PUBLIC_KEY_1: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDyMqv3jOo/FBGsvvCAli5yM15qNUMEcLkB+GripAUh4ng16WxE0SLXBl6EKE9YuVDjk1HSBvm41CV4nHpXukJQQmv1NJbwTr/ZgI2swG/SRQ+jDceiQcfGTRzW0fIvHzdYXiBKSHrH0ChC7u/aRwmubtxKv9XZ1AZn7PtphKn4r3oqlv8xNDwIlVqRR8ycza3x4ZYfpSe9JNrLCxY9rnk2V1z5C4SPgo70QXPnWNvPIMKLnlcoDXGy1049rZGsye3oi3WSwAVHoBhQbNxBt7iu1AZtB8nMd66SAfjeWURSzCZIAmJqX6XKsbGC11GOl+RRz2ZBvG1b3qiV1wDQ1x6p ton@jacks-MacBook-Pro.local"
           PUBLIC_KEY_2: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCxU7NlHEzlowtfTWU2dYpTS0B7af/3WI1wh+gB2JPqKLWYZnPvM5iB/AqfdJ/EH36zwcZWyXaGp4I7EnklmKMRiaaVr15tIx8Wvl8KlwQYStW56bGmRFTtpVYaMZ0CrhZFuJRVa29riEByJcBDdS7El4DVor3/fJ3LX/KKofcc0RH/E2bv5uvaI/vCuptPIFAkgquuACvqMP5gjtXaeI9Xbfuss8X2m2BxQxopYTOwtwn0ThZFDTaGydkQdPxhAMLqZ8BJWLKwim4UYB5fixL3v22vifYCdVTz56yxXoCklllcy8C27Jcg6MrSwurNaHBDGAJEHl7jkWcKx8FNPvf6C1ABtz/lQGLzSclHbsYnjwtkhT79n6BiTmv6wIOOm3JXc5GTkqwEOkoyuvHcbWSxCeYIMwUcN4Z6Vnw0gQraGvjKH9nwBvQFMWM8s9t8/jaKBbd12AUpbsq4dY3HuqjNzfPT8G73QIlsjCCN/iUZ3rEdoii4gBOeDZ55SEbkQXE= w3c_offical@gcp"
         run: |
@@ -49,18 +49,18 @@ jobs:
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
           
           # 如果用户存在则先删除，确保环境干净
-          if (Get-LocalUser -Name "admin" -ErrorAction SilentlyContinue) {
-              Remove-LocalUser -Name "admin"
+          if (Get-LocalUser -Name $env:SSH_USER -ErrorAction SilentlyContinue) {
+              Remove-LocalUser -Name $env:SSH_USER
           }
           
           # 创建用户并设置默认目录
-          New-LocalUser -Name "admin" -Password $securePass -AccountNeverExpires -PasswordNeverExpires
-          Add-LocalGroupMember -Group "Administrators" -Member "admin"
+          New-LocalUser -Name $env:SSH_USER -Password $securePass -AccountNeverExpires -PasswordNeverExpires
+          Add-LocalGroupMember -Group "Administrators" -Member $env:SSH_USER
           
           # 创建 D:\projects 目录并设置为用户主目录
           New-Item -ItemType Directory -Path "D:\projects" -Force
-          $user = Get-LocalUser -Name "admin"
-          Set-LocalUser -Name "admin" -HomeDirectory "D:\projects"
+          $user = Get-LocalUser -Name $env:SSH_USER
+          Set-LocalUser -Name $env:SSH_USER -HomeDirectory "D:\projects"
           
           # 4. 配置 SSH 公钥 (针对管理员组)
           $authKeyPath = "C:\ProgramData\ssh\administrators_authorized_keys"
