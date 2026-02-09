@@ -1,410 +1,248 @@
 #!/usr/bin/env python3
-"""
-FRP Tunnel CLI - Easy SSH tunneling with FRP
-"""
+"""FRP Tunnel CLI - Simple SSH tunneling"""
 
 import sys
+import os
+import subprocess
+import secrets
+import configparser
+from pathlib import Path
 import click
 from rich.console import Console
-from rich.panel import Panel
-from rich.text import Text
-from .core.installer import install_binaries
-from .core.tunnel import TunnelManager
-from .core.platform import detect_platform, is_colab
-from .core.config import ConfigManager
 
-# Force UTF-8 encoding on Windows
+console = Console()
+
+# Force UTF-8 on Windows
 if sys.platform == 'win32':
     import io
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-console = Console()
-tunnel_manager = TunnelManager()
-config_manager = ConfigManager()
+# Paths
+HOME = Path.home()
+DATA_DIR = HOME / 'data' / 'frp'
+BIN_DIR = HOME / '.frp-tunnel' / 'bin'
+SERVER_INI = DATA_DIR / 'frps.ini'
+CLIENT_INI = DATA_DIR / 'frpc.ini'
+
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+BIN_DIR.mkdir(parents=True, exist_ok=True)
+
+def download_frp():
+    """Download FRP binaries if not exists"""
+    frps = BIN_DIR / ('frps.exe' if sys.platform == 'win32' else 'frps')
+    frpc = BIN_DIR / ('frpc.exe' if sys.platform == 'win32' else 'frpc')
+    
+    if frps.exists() and frpc.exists():
+        return
+    
+    console.print("📦 Downloading FRP binaries...")
+    from .core.installer import install_binaries
+    install_binaries()
+    console.print("✅ Download complete")
+
+def gen_token():
+    """Generate a new token"""
+    return f"frp_{secrets.token_hex(16)}"
+
+def get_public_ip():
+    """Get public IP"""
+    try:
+        import requests
+        return requests.get('https://api.myip.com', timeout=3).json().get('ip', 'unknown')
+    except:
+        return 'unknown'
+
+def is_running(name):
+    """Check if process is running"""
+    try:
+        if sys.platform == 'win32':
+            result = subprocess.run(['tasklist'], capture_output=True, text=True)
+            return name in result.stdout
+        else:
+            result = subprocess.run(['pgrep', '-f', name], capture_output=True)
+            return result.returncode == 0
+    except:
+        return False
 
 @click.group()
 @click.version_option()
 def cli():
-    """🚀 FRP Tunnel - Easy SSH tunneling with FRP"""
+    """🚀 FRP Tunnel - Easy SSH tunneling"""
     pass
 
 @cli.command()
-@click.option('--mode', type=click.Choice(['server', 'client', 'colab', 'auto']), default='auto', help='Setup mode')
-@click.option('--server', help='Server address (for client mode)')
-@click.option('--token', help='Authentication token')
-@click.option('--port', default=6001, help='Remote port')
-@click.option('--user', default='colab', help='SSH username')
-@click.option('-f', '--force', is_flag=True, help='Force regenerate token')
-def setup(mode, server, token, port, user, force):
-    """Interactive setup wizard"""
-    console.print(Panel.fit("🚀 FRP Tunnel Setup", style="bold blue"))
-    
-    # Auto-detect mode if not specified
-    if mode == 'auto':
-        if is_colab():
-            mode = 'colab'
-            console.print("🔬 Detected Google Colab environment")
-        else:
-            mode = click.prompt('Setup mode', type=click.Choice(['server', 'client']))
-    
-    if mode == 'server':
-        setup_server(force)
-    elif mode in ['client', 'colab']:
-        setup_client(mode, server, token, port, user)
+def token():
+    """Generate a new token"""
+    new_token = gen_token()
+    console.print(f"🔑 Generated token: [bold yellow]{new_token}[/bold yellow]")
+    console.print("💡 Configure manually in server.ini")
 
-def setup_server(force=False):
-    """Setup FRP server"""
-    console.print("🖥️  Setting up FRP server...")
+@cli.command()
+@click.option('-f', '--force', is_flag=True, help='Force restart if running')
+@click.option('-r', '--restart', is_flag=True, help='Restart server')
+def server(force, restart):
+    """Start FRP server
     
-    port = click.prompt('Server port', default=7000, type=int)
+    Examples:
+      frp-tunnel server           # Start server (auto-gen token)
+      frp-tunnel server -f        # Force restart
+      frp-tunnel server -r        # Restart and show status
+    """
+    download_frp()
     
-    # Check if config exists and get existing token
-    existing_config = config_manager.get_server_config()
-    existing_token = existing_config.get('token', '') if existing_config else ''
+    # Check if running
+    if is_running('frps'):
+        if not force and not restart:
+            console.print("⚠️  Server already running")
+            show_status()
+            return
+        console.print("🔄 Stopping server...")
+        stop_server()
     
-    if existing_token and not force:
-        console.print(f"🔑 Using existing token: [bold yellow]{existing_token}[/bold yellow]")
-        console.print("💡 Use -f to force regenerate token")
-        token = existing_token
-    else:
-        import secrets
-        token = f"frp_{secrets.token_hex(16)}"
-        if force and existing_token:
-            console.print(f"🔄 Regenerated token: [bold yellow]{token}[/bold yellow]")
-        else:
-            console.print(f"🔑 Generated token: [bold yellow]{token}[/bold yellow]")
-    
-    # Install server binary
-    with console.status("📦 Installing FRP server..."):
-        install_binaries('server')
-    
-    # Create configuration
-    config = {
-        'bind_port': port,
-        'token': token
-    }
-    config_path = config_manager.create_server_config(config)
-    console.print(f"📄 Config: [cyan]{config_path}[/cyan]")
+    # Generate config if not exists
+    if not SERVER_INI.exists():
+        console.print("📝 Generating server config...")
+        token = gen_token()
+        config = f"""[common]
+bind_port = 7000
+token = {token}
+dashboard_port = 7500
+dashboard_user = admin
+dashboard_pwd = admin
+log_file = {DATA_DIR}/frps.log
+log_level = info
+authentication_method = token
+"""
+        SERVER_INI.write_text(config)
+        console.print(f"🔑 Token: [bold yellow]{token}[/bold yellow]")
     
     # Start server
-    if click.confirm('Start server now?', default=True):
-        tunnel_manager.start_server(config)
-        console.print("✅ Server started successfully!")
-        console.print(f"🔑 Share this token with clients: [bold]{token}[/bold]")
-
-def setup_client(mode, server, token, port, user):
-    """Setup FRP client"""
-    console.print(f"📱 Setting up FRP client ({mode})...")
+    console.print("🚀 Starting server...")
+    frps = BIN_DIR / ('frps.exe' if sys.platform == 'win32' else 'frps')
     
-    # Get configuration
-    if not server:
-        server = click.prompt('Server address')
-    if not token:
-        token = click.prompt('Authentication token')
+    if sys.platform == 'win32':
+        subprocess.Popen([str(frps), '-c', str(SERVER_INI)], 
+                        creationflags=subprocess.CREATE_NO_WINDOW)
+    else:
+        subprocess.Popen([str(frps), '-c', str(SERVER_INI)],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
-    # Install client binary
-    with console.status("📦 Installing FRP client..."):
-        install_binaries('client')
-    
-    # Create configuration
-    config = {
-        'server_addr': server,
-        'server_port': 7000,
-        'token': token,
-        'remote_port': port,
-        'username': user
-    }
-    config_manager.create_client_config(config)
-    
-    # Setup SSH for Colab
-    if mode == 'colab':
-        with console.status("🔧 Setting up SSH..."):
-            tunnel_manager.setup_colab_ssh(user)
-    
-    # Start client
-    tunnel_manager.start_client(config)
-    console.print("✅ Client connected successfully!")
-    console.print(f"🔗 SSH command: [bold]ssh -p {port} {user}@{server}[/bold]")
+    import time
+    time.sleep(2)
+    console.print("✅ Server started")
+    show_status()
 
 @cli.command()
 @click.option('--server', required=True, help='Server address')
 @click.option('--token', required=True, help='Authentication token')
-@click.option('--port', default=6001, help='Remote port')
-@click.option('--user', default='colab', help='SSH username')
-def colab(server, token, port, user):
-    """Quick setup for Google Colab"""
-    console.print("🔬 Setting up Google Colab tunnel...")
-    setup_client('colab', server, token, port, user)
+@click.option('--ports', default='6000,6001', help='Ports to forward (comma-separated)')
+def client(server, token, ports):
+    """Start FRP client
+    
+    Examples:
+      frp-tunnel client --server 1.2.3.4 --token xxx
+      frp-tunnel client --server 1.2.3.4 --token xxx --ports 6000,6001,6002
+    """
+    download_frp()
+    
+    # Generate client config
+    port_list = [p.strip() for p in ports.split(',')]
+    config = f"""[common]
+server_addr = {server}
+server_port = 7000
+token = {token}
+log_file = {DATA_DIR}/frpc.log
+log_level = info
+
+"""
+    for i, port in enumerate(port_list):
+        config += f"""[ssh_{port}]
+type = tcp
+local_ip = 127.0.0.1
+local_port = 22
+remote_port = {port}
+
+"""
+    
+    CLIENT_INI.write_text(config)
+    
+    # Start client
+    console.print(f"🚀 Starting client (ports: {', '.join(port_list)})...")
+    frpc = BIN_DIR / ('frpc.exe' if sys.platform == 'win32' else 'frpc')
+    
+    if sys.platform == 'win32':
+        subprocess.Popen([str(frpc), '-c', str(CLIENT_INI)],
+                        creationflags=subprocess.CREATE_NO_WINDOW)
+    else:
+        subprocess.Popen([str(frpc), '-c', str(CLIENT_INI)],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    
+    import time
+    time.sleep(2)
+    console.print("✅ Client started")
+
+@cli.command()
+def stop():
+    """Stop all FRP processes"""
+    console.print("🛑 Stopping...")
+    stop_server()
+    stop_client()
+    console.print("✅ Stopped")
+
+def stop_server():
+    """Stop server process"""
+    if sys.platform == 'win32':
+        subprocess.run(['taskkill', '/F', '/IM', 'frps.exe'], 
+                      capture_output=True)
+    else:
+        subprocess.run(['pkill', '-9', 'frps'], capture_output=True)
+
+def stop_client():
+    """Stop client process"""
+    if sys.platform == 'win32':
+        subprocess.run(['taskkill', '/F', '/IM', 'frpc.exe'],
+                      capture_output=True)
+    else:
+        subprocess.run(['pkill', '-9', 'frpc'], capture_output=True)
 
 @cli.command()
 def status():
     """Show tunnel status"""
-    console.print("📊 Tunnel Status")
-    status_info = tunnel_manager.get_status()
+    show_status()
+
+def show_status():
+    """Display status"""
+    console.print("\n📊 Tunnel Status")
     
-    if status_info['server_running']:
+    # Server status
+    if is_running('frps'):
         console.print("🖥️  Server: [green]Running[/green]")
+        ip = get_public_ip()
+        if ip != 'unknown':
+            console.print(f"   🌐 Public IP: [cyan]{ip}[/cyan]")
+        console.print(f"   📄 Config: [cyan]{SERVER_INI}[/cyan]")
         
-        # Get public IP
-        public_ip = None
-        try:
-            import requests
-            public_ip = requests.get('https://api.myip.com', timeout=3).json().get('ip', None)
-            if public_ip:
-                console.print(f"   🌐 Public IP: [bold cyan]{public_ip}[/bold cyan]")
-        except:
-            pass
-        
-        console.print(f"   📄 Config: [cyan]{config_manager.server_config_path}[/cyan]")
-        
-        # Show connected clients from server log
-        log_file = config_manager.config_dir / 'frps.log'
-        if log_file.exists():
-            console.print(f"   📋 Log: [cyan]{log_file}[/cyan]")
-            
-            # Parse log for connected clients (only recent active ones)
-            import re
-            from datetime import datetime, timedelta
-            clients = {}
-            now = datetime.now()
-            
-            try:
-                with open(log_file, 'r') as f:
-                    for line in f.readlines()[-100:]:  # Check last 100 lines
-                        # Parse timestamp: 2026/02/09 15:46:47
-                        time_match = re.match(r'(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2})', line)
-                        if not time_match:
-                            continue
-                        
-                        log_time = datetime.strptime(time_match.group(1), '%Y/%m/%d %H:%M:%S')
-                        
-                        # Only consider logs from last 5 minutes
-                        if (now - log_time).total_seconds() > 300:
-                            continue
-                        
-                        # Match: [client_id] client login info: ip [x.x.x.x:port]
-                        match = re.search(r'\[([a-f0-9]+)\].*client login info: ip \[([^\]]+)\]', line)
-                        if match:
-                            client_id = match.group(1)[:8]
-                            client_ip = match.group(2)
-                            clients[client_id] = {'ip': client_ip, 'time': log_time, 'ports': []}
-                        
-                        # Match: [client_id] tcp proxy listen port [xxxx]
-                        match = re.search(r'\[([a-f0-9]+)\].*tcp proxy listen port \[(\d+)\]', line)
-                        if match:
-                            client_id = match.group(1)[:8]
-                            port = match.group(2)
-                            if client_id in clients and port not in clients[client_id]['ports']:
-                                clients[client_id]['ports'].append(port)
-                
-                if clients:
-                    console.print(f"   👥 Active clients: {len(clients)}")
-                    for client_id, info in clients.items():
-                        ports_info = f" → ports {', '.join(info['ports'])}" if info['ports'] else ""
-                        console.print(f"      • {client_id}: {info['ip']}{ports_info}")
-            except:
-                pass
-        
-        # Show client connection example
-        if public_ip:
-            console.print(f"\n   💡 Client connect command:")
-            console.print(f"      [dim]frp-tunnel start --component client --server {public_ip} --token <YOUR_TOKEN> --port 6001[/dim]")
+        # Read token from config
+        if SERVER_INI.exists():
+            config = configparser.ConfigParser()
+            config.read(SERVER_INI)
+            if 'common' in config and 'token' in config['common']:
+                token = config['common']['token']
+                console.print(f"   🔑 Token: [yellow]{token}[/yellow]")
     else:
         console.print("🖥️  Server: [red]Stopped[/red]")
     
-    if status_info['client_running']:
+    # Client status
+    if is_running('frpc'):
         console.print("📱 Client: [green]Connected[/green]")
-        console.print(f"   📄 Config: [cyan]{config_manager.client_config_path}[/cyan]")
-        log_file = config_manager.config_dir / 'frpc.log'
-        if log_file.exists():
-            console.print(f"   📋 Log: [cyan]{log_file}[/cyan]")
+        console.print(f"   📄 Config: [cyan]{CLIENT_INI}[/cyan]")
     else:
         console.print("📱 Client: [red]Disconnected[/red]")
-
-@cli.command()
-def stop():
-    """Stop all tunnels"""
-    console.print("🛑 Stopping tunnels...")
-    tunnel_manager.stop_all()
-    console.print("✅ All tunnels stopped")
-
-@cli.command()
-def logs():
-    """View tunnel logs"""
-    console.print("📝 Recent logs:")
-    logs = tunnel_manager.get_logs()
-    for log_line in logs:
-        console.print(log_line)
-
-@cli.command()
-def install():
-    """Install/update FRP binaries"""
-    console.print("📦 Installing FRP binaries...")
-    with console.status("Downloading..."):
-        install_binaries()
-    console.print("✅ Installation complete")
-
-@cli.command()
-@click.option('--component', type=click.Choice(['server', 'client', 'both']), required=True, help='Component to start')
-@click.option('--server', help='Server address (for client mode)')
-@click.option('--token', help='Authentication token')
-@click.option('--port', type=int, help='Remote port for SSH')
-@click.option('--local-port', type=int, help='Local SSH port')
-@click.option('-d', '--daemon', is_flag=True, help='Run in background (daemon mode)')
-@click.option('-f', '--force', is_flag=True, help='Force restart if already running')
-def start(component, server, token, port, local_port, daemon, force):
-    """Start FRP server or client"""
     
-    # Force restart if requested
-    if force:
-        console.print("🔄 Force restarting...")
-        tunnel_manager.stop_all()
-        import time
-        time.sleep(2)
-    
-    if daemon:
-        import subprocess
-        import sys
-        
-        # Build command without --daemon flag
-        cmd = [sys.executable, '-m', 'frp_tunnel.cli', 'start', '--component', component]
-        if server:
-            cmd.extend(['--server', server])
-        if token:
-            cmd.extend(['--token', token])
-        if port:
-            cmd.extend(['--port', str(port)])
-        if local_port:
-            cmd.extend(['--local-port', str(local_port)])
-        if force:
-            cmd.append('--force')
-        
-        # Start in background
-        if sys.platform == 'win32':
-            subprocess.Popen(cmd, creationflags=subprocess.CREATE_NO_WINDOW)
-        else:
-            subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-        
-        console.print("✅ Started in daemon mode")
-        
-        # Show log tail
-        import time
-        time.sleep(2)
-        console.print("\n📋 Recent logs:")
-        log_file = config_manager.config_dir / 'frps.log' if component in ['server', 'both'] else config_manager.config_dir / 'frpc.log'
-        if log_file.exists():
-            with open(log_file, 'r') as f:
-                lines = f.readlines()
-                for line in lines[-10:]:
-                    console.print(f"   {line.rstrip()}")
-        console.print(f"\n💡 View full logs: tail -f {log_file}")
-        return
-    
-    # Get public IP for server
-    if component in ['server', 'both']:
-        try:
-            import requests
-            public_ip = requests.get('https://api.myip.com', timeout=3).json().get('ip', 'unknown')
-            console.print(f"🌐 Public IP: [bold cyan]{public_ip}[/bold cyan]")
-        except:
-            pass
-    
-    if component in ['server', 'both']:
-        config = config_manager.get_server_config()
-        
-        # Override with command line args if provided
-        if token and config:
-            if 'common' not in config:
-                config['common'] = {}
-            config['common']['token'] = token
-        
-        if not config:
-            console.print("❌ No server configuration found. Run 'frp-tunnel setup server' first.")
-            return
-        
-        console.print(f"📄 Server config: [cyan]{config_manager.server_config_path}[/cyan]")
-        if tunnel_manager.start_server(config):
-            console.print("✅ Server started successfully!")
-        else:
-            console.print("❌ Failed to start server")
-    
-    if component in ['client', 'both']:
-        config = config_manager.get_client_config()
-        
-        # Override with command line args if provided (only if explicitly specified)
-        if server or token or port or local_port:
-            if not config:
-                config = {
-                    'common': {
-                        'server_port': 7000
-                    },
-                    'ssh': {
-                        'type': 'tcp',
-                        'local_ip': '127.0.0.1',
-                        'local_port': local_port or 22,
-                        'remote_port': port or 6001
-                    }
-                }
-            else:
-                if 'common' not in config:
-                    config['common'] = {}
-                if 'ssh' not in config:
-                    config['ssh'] = {'type': 'tcp', 'local_ip': '127.0.0.1'}
-            
-            if server:
-                config['common']['server_addr'] = server
-            if token:
-                config['common']['token'] = token
-            if port:
-                config['ssh']['remote_port'] = port
-            if local_port:
-                config['ssh']['local_port'] = local_port
-        
-        if not config:
-            console.print("❌ No client configuration found. Run 'frp-tunnel setup client' first.")
-            return
-        
-        console.print(f"📄 Client config: [cyan]{config_manager.client_config_path}[/cyan]")
-        if tunnel_manager.start_client(config):
-            console.print("✅ Client connected successfully!")
-        else:
-            console.print("❌ Failed to start client")
-
-
-@cli.command()
-def update():
-    """Update frp-tunnel to latest version"""
-    import subprocess
-    import sys
-    
-    console.print("🔄 Updating frp-tunnel...")
-    
-    try:
-        # Update using pip
-        result = subprocess.run([
-            sys.executable, '-m', 'pip', 'install', '--upgrade', 'frp-tunnel'
-        ], capture_output=True, text=True)
-        
-        if result.returncode == 0:
-            console.print("✅ frp-tunnel updated successfully!")
-            console.print("🔧 Run 'frp-tunnel --version' to see the new version")
-        else:
-            console.print(f"❌ Update failed: {result.stderr}")
-            
-    except Exception as e:
-        console.print(f"❌ Update error: {e}")
-
-
-@cli.command()
-def clean():
-    """Clean cache and temporary files"""
-    console.print("🧹 Cleaning cache...")
-    tunnel_manager.clean_cache()
-    console.print("✅ Cache cleaned")
+    console.print()
 
 def main():
-    """Entry point for the CLI"""
     cli()
 
 if __name__ == '__main__':
