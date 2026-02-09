@@ -1,0 +1,26 @@
+serverAddr: 34.102.78.219
+serverPort: 7000
+auth:
+  token: REPLACE_WITH_TOKEN
+log:
+  to: ./frpc.log
+  level: info
+webServer:
+  addr: 127.0.0.1
+  port: 7400
+proxies:
+  - name: ssh_6003
+    type: tcp
+    localIP: 127.0.0.1
+    localPort: 22
+    remotePort: 6003
+  - name: rdp_6004
+    type: tcp
+    localIP: 127.0.0.1
+    localPort: 3389
+    remotePort: 6004
+  - name: mcp_6005
+    type: tcp
+    localIP: 127.0.0.1
+    localPort: 8101
+    remotePort: 6005
