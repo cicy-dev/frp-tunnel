@@ -245,11 +245,15 @@ def server_status():
                 data = response.json()
                 proxies = data.get('proxies', [])
                 
-                if proxies:
-                    console.print(f"   👥 Active clients: [green]{len(proxies)}[/green]")
-                    for proxy in proxies:
+                # Filter online proxies only
+                online_proxies = [p for p in proxies if p.get('status') != 'offline']
+                
+                if online_proxies:
+                    console.print(f"   👥 Active clients: [green]{len(online_proxies)}[/green]")
+                    for proxy in online_proxies:
                         name = proxy.get('name', 'unknown')
-                        port = proxy.get('conf', {}).get('remotePort', 'unknown')
+                        conf = proxy.get('conf', {}) or {}
+                        port = conf.get('remotePort', 'unknown')
                         version = proxy.get('clientVersion', 'unknown')
                         conns = proxy.get('curConns', 0)
                         console.print(f"      • {name}: port {port} (v{version}, {conns} conns)")
@@ -257,7 +261,7 @@ def server_status():
                     console.print(f"   👥 Active clients: [yellow]0[/yellow]")
             else:
                 console.print(f"   👥 Active clients: [yellow]API unavailable[/yellow]")
-        except:
+        except Exception as e:
             console.print(f"   👥 Active clients: [yellow]Unknown[/yellow]")
     else:
         console.print("🖥️  Server: [red]Stopped[/red]")
