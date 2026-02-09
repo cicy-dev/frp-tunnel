@@ -45,17 +45,23 @@ class BinaryInstaller:
     def _download_and_extract(self) -> Path:
         """Download and extract FRP archive"""
         url = get_frp_binary_url()
+        is_zip = url.endswith('.zip')
         
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            archive_path = temp_path / 'frp.tar.gz'
+            archive_path = temp_path / ('frp.zip' if is_zip else 'frp.tar.gz')
             
             # Download
             urllib.request.urlretrieve(url, archive_path)
             
             # Extract
-            with tarfile.open(archive_path, 'r:gz') as tar:
-                tar.extractall(temp_path)
+            if is_zip:
+                import zipfile
+                with zipfile.ZipFile(archive_path, 'r') as zip_ref:
+                    zip_ref.extractall(temp_path)
+            else:
+                with tarfile.open(archive_path, 'r:gz') as tar:
+                    tar.extractall(temp_path)
             
             # Find extracted directory
             extracted_dirs = [d for d in temp_path.iterdir() if d.is_dir()]

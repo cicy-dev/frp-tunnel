@@ -73,7 +73,9 @@ def get_frp_binary_url(version: str = "0.52.3") -> str:
     os_name = os_map.get(platform_info['os'], platform_info['os'])
     arch = platform_info['arch']
     
-    filename = f"frp_{version}_{os_name}_{arch}.tar.gz"
+    # Windows uses .zip, others use .tar.gz
+    ext = 'zip' if os_name == 'windows' else 'tar.gz'
+    filename = f"frp_{version}_{os_name}_{arch}.{ext}"
     url = f"https://github.com/fatedier/frp/releases/download/v{version}/{filename}"
     
     return url
