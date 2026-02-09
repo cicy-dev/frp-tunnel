@@ -69,20 +69,9 @@ Invoke-Command -ComputerName localhost -Credential $cred -ScriptBlock {
     & "C:\install-tools.ps1"
 }
 
-# 下载并安装 code-server standalone 版本
+# 安装 code-server (使用 npm)
 Write-Host "Installing code-server..."
-$codeServerVersion = "4.96.2"
-$codeServerUrl = "https://github.com/coder/code-server/releases/download/v$codeServerVersion/code-server-$codeServerVersion-windows-amd64.zip"
-$codeServerZip = "C:\code-server.zip"
-$codeServerDir = "C:\code-server"
-
-Invoke-WebRequest -Uri $codeServerUrl -OutFile $codeServerZip
-Expand-Archive -Path $codeServerZip -DestinationPath "C:\" -Force
-Rename-Item -Path "C:\code-server-$codeServerVersion-windows-amd64" -NewName $codeServerDir -Force
-Remove-Item $codeServerZip
-
-# 添加到系统 PATH
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$codeServerDir\bin", [EnvironmentVariableTarget]::Machine)
+npm install -g code-server
 
 Write-Host "Tools installation completed"
 
