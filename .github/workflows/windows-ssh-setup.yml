@@ -29,6 +29,7 @@ jobs:
           secedit /configure /db c:\windows\security\local.sdb /cfg c:\secpol.cfg /areas SECURITYPOLICY
           Remove-Item -Force c:\secpol.cfg -Confirm:$false
 
+
           # 3. 创建 Admin 用户
           # 使用一个全新的强密码，且不包含 "admin" 字样
                     
