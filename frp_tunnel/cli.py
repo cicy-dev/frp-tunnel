@@ -147,10 +147,12 @@ def status():
         console.print("🖥️  Server: [green]Running[/green]")
         
         # Get public IP
+        public_ip = None
         try:
             import requests
-            public_ip = requests.get('https://api.myip.com', timeout=3).json().get('ip', 'unknown')
-            console.print(f"   🌐 Public IP: [bold cyan]{public_ip}[/bold cyan]")
+            public_ip = requests.get('https://api.myip.com', timeout=3).json().get('ip', None)
+            if public_ip:
+                console.print(f"   🌐 Public IP: [bold cyan]{public_ip}[/bold cyan]")
         except:
             pass
         
@@ -187,6 +189,11 @@ def status():
                         console.print(f"      • {client_id}: {info}")
             except:
                 pass
+        
+        # Show client connection example
+        if public_ip:
+            console.print(f"\n   💡 Client connect command:")
+            console.print(f"      [dim]frp-tunnel start --component client --server {public_ip} --token <YOUR_TOKEN> --port 6001[/dim]")
     else:
         console.print("🖥️  Server: [red]Stopped[/red]")
     
