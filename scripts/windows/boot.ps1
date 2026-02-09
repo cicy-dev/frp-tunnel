@@ -59,7 +59,7 @@ Write-Host "SSH setup complete!"
 # 5. 以 cicy-dev 用户安装工具
 Write-Host "Installing tools as cicy-dev user..."
 "npm config set prefix C:\Users\$username\AppData\Roaming\npm" | Out-File -FilePath "C:\install-tools.ps1" -Encoding UTF8
-"npm install -g electron opencode-ai code-server" | Out-File -FilePath "C:\install-tools.ps1" -Append -Encoding UTF8
+"npm install -g electron opencode-ai" | Out-File -FilePath "C:\install-tools.ps1" -Append -Encoding UTF8
 "npm list -g --depth=0" | Out-File -FilePath "C:\install-tools.ps1" -Append -Encoding UTF8
 
 $password = ConvertTo-SecureString "P@ssw0rd123!" -AsPlainText -Force
@@ -68,6 +68,21 @@ $cred = New-Object System.Management.Automation.PSCredential ($username, $passwo
 Invoke-Command -ComputerName localhost -Credential $cred -ScriptBlock {
     & "C:\install-tools.ps1"
 }
+
+# 下载并安装 code-server standalone 版本
+Write-Host "Installing code-server..."
+$codeServerVersion = "4.96.2"
+$codeServerUrl = "https://github.com/coder/code-server/releases/download/v$codeServerVersion/code-server-$codeServerVersion-windows-amd64.zip"
+$codeServerZip = "C:\code-server.zip"
+$codeServerDir = "C:\code-server"
+
+Invoke-WebRequest -Uri $codeServerUrl -OutFile $codeServerZip
+Expand-Archive -Path $codeServerZip -DestinationPath "C:\" -Force
+Rename-Item -Path "C:\code-server-$codeServerVersion-windows-amd64" -NewName $codeServerDir -Force
+Remove-Item $codeServerZip
+
+# 添加到系统 PATH
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$codeServerDir\bin", [EnvironmentVariableTarget]::Machine)
 
 Write-Host "Tools installation completed"
 
