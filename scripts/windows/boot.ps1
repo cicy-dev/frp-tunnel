@@ -1,4 +1,5 @@
 # SSH Setup Script for Windows
+$ErrorActionPreference = "Continue"
 
 # 1. 安装并启动 OpenSSH
 Write-Host "Installing OpenSSH..."
@@ -65,4 +66,7 @@ if (-not $opencodeInstalled) {
 } else {
     Write-Host "OpenCode AI already installed"
 }
+
+Write-Host "`nBoot script completed successfully!"
+exit 0
 
