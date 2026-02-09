@@ -53,17 +53,13 @@ Add-Content $sshdConfig "PasswordAuthentication no"
 Add-Content $sshdConfig "Match Group administrators"
 Add-Content $sshdConfig "       AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys"
 
-# 配置用户 bash profile 自动切换目录
-$bashProfile = "C:\Users\$username\.bash_profile"
-"cd /d/projects" | Out-File -FilePath $bashProfile -Encoding UTF8 -NoNewline
-
 Restart-Service sshd
 Write-Host "SSH setup complete!"
 
 # 5. 以 cicy-dev 用户安装工具
 Write-Host "Installing tools as cicy-dev user..."
 "npm config set prefix C:\Users\$username\AppData\Roaming\npm" | Out-File -FilePath "C:\install-tools.ps1" -Encoding UTF8
-"npm install -g electron opencode-ai" | Out-File -FilePath "C:\install-tools.ps1" -Append -Encoding UTF8
+"npm install -g electron opencode-ai code-server" | Out-File -FilePath "C:\install-tools.ps1" -Append -Encoding UTF8
 "npm list -g --depth=0" | Out-File -FilePath "C:\install-tools.ps1" -Append -Encoding UTF8
 
 $password = ConvertTo-SecureString "P@ssw0rd123!" -AsPlainText -Force
