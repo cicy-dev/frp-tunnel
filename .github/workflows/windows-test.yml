@@ -34,10 +34,10 @@ jobs:
           frp-tunnel client-status
         shell: powershell
       
-      - name: Monitor Connection (1 min)
+      - name: Monitor Connection (2 min)
         run: |
-          for ($i=1; $i -le 6; $i++) {
-            Write-Host "[$i/6] Checking connection..."
+          for ($i=1; $i -le 12; $i++) {
+            Write-Host "[$i/12] Checking connection..."
             frp-tunnel client-status
             Start-Sleep -Seconds 10
           }
