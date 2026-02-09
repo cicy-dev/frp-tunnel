@@ -33,13 +33,22 @@ jobs:
           # Add SSH keys
           $sshDir = "$env:USERPROFILE\.ssh"
           New-Item -ItemType Directory -Path $sshDir -Force | Out-Null
-          $env:SSH_PUBLIC_KEYS | Out-File -FilePath "$sshDir\authorized_keys" -Encoding ASCII -NoNewline
+          
+          # Write keys line by line
+          $keys = $env:SSH_PUBLIC_KEYS -split "`n"
+          foreach ($key in $keys) {
+            if ($key.Trim()) {
+              Add-Content -Path "$sshDir\authorized_keys" -Value $key.Trim() -NoNewline
+              Add-Content -Path "$sshDir\authorized_keys" -Value "`n"
+            }
+          }
           
           # Fix permissions
           icacls "$sshDir" /inheritance:r
           icacls "$sshDir" /grant:r "${env:USERNAME}:(OI)(CI)F"
           icacls "$sshDir\authorized_keys" /inheritance:r  
-          icacls "$sshDir\authorized_keys" /grant:r "${env:USERNAME}:F"
+          icacls "$sshDir\authorized_keys" /grant:r "${env:USERNAME}:R"
+          icacls "$sshDir\authorized_keys" /grant:r "SYSTEM:R"
           
           # Restart SSH service
           Restart-Service sshd
@@ -61,6 +70,16 @@ jobs:
           Write-Host "Connection ready!"
           Write-Host "Username: $env:USERNAME"
           Write-Host "SSH from server: ssh -p 6003 $env:USERNAME@34.102.78.219"
+          Write-Host ""
+          Write-Host "Checking SSH service..."
+          Get-Service sshd
+          Write-Host ""
+          Write-Host "Checking authorized_keys..."
+          Get-Content "$env:USERPROFILE\.ssh\authorized_keys"
+          Write-Host ""
+          Write-Host "Testing local SSH..."
+          ssh -o StrictHostKeyChecking=no localhost "echo Local SSH works!"
+          Write-Host ""
           Write-Host "Keeping connection alive for 5 minutes..."
         shell: powershell
       
