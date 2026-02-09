@@ -11,43 +11,44 @@ env:
   DEFAULT_DIR: "D:/projects"
   FRP_PORT: "6003"
   FRP_SERVER: "34.102.78.219"
-  # 重要：请再次确认下方的公钥是否和你本地 ~/.ssh/id_rsa.pub 的内容完全一致（必须是单行）
   PUBKEY_1: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDyMqv3jOo/FBGsvvCAli5yM15qNUMEcLkB+GripAUh4ng16WxE0SLXBl6EKE9YuVDjk1HSBvm41CV4nHpXukJQQmv1NJbwTr/ZgI2swG/SRQ+jDceiQcfGTRzW0fIvHzdYXiBKSHrH0ChC7u/aRwmubtxKv9XZ1AZn7PtphKn4r3oqlv8xNDwIlVqRR8ycza3x4ZYfpSe9JNrLCxY9rnk2V1z5C4SPgo70QXPnWNvPIMKLnlcoDXGy1049rZGsye3oi3WSwAVHoBhQbNxBt7iu1AZtB8nMd66SAfjeWURSzCZIAmJqX6XKsbGC11GOl+RRz2ZBvG1b3qiV1wDQ1x6p ton@jacks-MacBook-Pro.local"
+  PUBKEY_2: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCxU7NlHEzlowtfTWU2dYpTS0B7af/3WI1wh+gB2JPqKLWYZnPvM5iB/AqfdJ/EH36zwcZWyXaGp4I7EnklmKMRiaaVr15tIx8Wvl8KlwQYStW56bGmRFTtpVYaMZ0CrhZFuJRVa29riEByJcBDdS7El4DVor3/fJ3LX/KKofcc0RH/E2bv5uvaI/vCuptPIFAkgquuACvqMP5gjtXaeI9Xbfuss8X2m2BxQxopYTOwtwn0ThZFDTaGydkQdPxhAMLqZ8BJWLKwim4UYB5fixL3v22vifYCdVTz56yxXoCklllcy8C27Jcg6MrSwurNaHBDGAJEHl7jkWcKx8FNPvf6C1ABtz/lQGLzSclHbsYnjwtkhT79n6BiTmv6wIOOm3JXc5GTkqwEOkoyuvHcbWSxCeYIMwUcN4Z6Vnw0gQraGvjKH9nwBvQFMWM8s9t8/jaKBbd12AUpbsq4dY3HuqjNzfPT8G73QIlsjCCN/iUZ3rEdoii4gBOeDZ55SEbkQXE= w3c_offical@gcp"
 
 jobs:
   setup-ssh:
     runs-on: windows-latest
     
     steps:
-      - name: Configure SSH and Permissions
+      - name: Configure Windows SSH
         run: |
-          # 1. 安装服务
+          # 1. 安装 OpenSSH Server
           Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
           Start-Service sshd
           Set-Service -Name sshd -StartupType 'Automatic'
           
-          # 2. 创建目录
+          # 2. 准备项目目录
           if (!(Test-Path $env:DEFAULT_DIR)) { New-Item -ItemType Directory -Force -Path $env:DEFAULT_DIR }
 
-          # 3. 创建用户
+          # 3. 创建管理用户 (仅内部使用密码)
           $securePass = ConvertTo-SecureString $env:SSH_PASS -AsPlainText -Force
           if (Get-LocalUser -Name $env:SSH_USER -ErrorAction SilentlyContinue) { Remove-LocalUser -Name $env:SSH_USER }
           New-LocalUser -Name $env:SSH_USER -Password $securePass -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member $env:SSH_USER
           
-          # 4. 配置公钥文件
+          # 4. 配置 SSH 公钥权限 (Administrators 组专用路径)
           $keyFile = "C:/ProgramData/ssh/administrators_authorized_keys"
-          # 强制清理环境变量中可能的首尾空格
-          $pubKey = $env:PUBKEY_1.Trim()
-          $pubKey | Out-File -FilePath $keyFile -Encoding ascii -Force
+          "$env:PUBKEY_1`n$env:PUBKEY_2" | Out-File -FilePath $keyFile -Encoding ascii
           
-          # 5. 【核心修复】极其严格的权限设置
-          # 禁用继承，移除所有其他权限，仅保留 SYSTEM 和 Administrators
-          icacls $keyFile /inheritance:r
-          icacls $keyFile /grant "SYSTEM:F"
-          icacls $keyFile /grant "BUILTIN\Administrators:F"
+          $acl = Get-Acl $keyFile
+          $acl.SetAccessRuleProtection($true, $false)
+          $admins = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::BuiltinAdministratorsSid, $null)
+          $system = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::LocalSystemSid, $null)
+          $acl.SetOwner($admins)
+          $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($admins, "FullControl", "Allow")))
+          $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($system, "FullControl", "Allow")))
+          Set-Acl $keyFile $acl
           
-          # 6. 配置 sshd_config
+          # 5. 配置 sshd_config (禁用密码，强制公钥)
           $config = "C:/ProgramData/ssh/sshd_config"
           (Get-Content $config) | Where-Object { 
             $_ -notmatch "^PasswordAuthentication" -and 
@@ -61,7 +62,7 @@ jobs:
           Add-Content $config "`nMatch Group administrators"
           Add-Content $config "`n    AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys"
           
-          # 7. 登录起始目录
+          # 6. 设置默认登录路径
           New-ItemProperty -Path "HKLM:/SOFTWARE/OpenSSH" -Name "DefaultShell" -Value "powershell.exe" -PropertyType String -Force
           New-ItemProperty -Path "HKLM:/SOFTWARE/OpenSSH" -Name "DefaultShellCommandOption" -Value "/K cd /d $env:DEFAULT_DIR" -PropertyType String -Force
 
@@ -73,9 +74,18 @@ jobs:
           FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
         run: |
           pip install frp-tunnel
+          # 使用全闭包方式启动，解决参数解析报错
           $frpArgs = "client --server $env:FRP_SERVER --token $env:FRP_TOKEN --port $env:FRP_PORT"
           Start-Process "frp-tunnel" -ArgumentList $frpArgs -NoNewWindow
           Start-Sleep -Seconds 10
+        shell: powershell
+
+      - name: SSH Ready Info
+        run: |
+          Write-Host "--- SSH Connection Info ---"
+          Write-Host "Target: ssh -p $env:FRP_PORT ${env:SSH_USER}@${env:FRP_SERVER}"
+          Write-Host "Root:   $env:DEFAULT_DIR"
+          Write-Host "---------------------------"
         shell: powershell
 
       - name: Keep Alive
