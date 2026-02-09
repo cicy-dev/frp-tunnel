@@ -13,162 +13,134 @@
 - **Solution**: Creates a secure tunnel so you can SSH from anywhere
 - **Result**: Use your favorite tools (VS Code, file transfer, etc.) with remote servers
 
-## 🏗️ How It Works
+## ⚡ Quick Start
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Local Client  │    │   GCP Server    │    │  Google Colab   │
-│  (Any Platform) │    │   (frps:7000)   │    │  (frpc+SSH)     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         │ SSH -p 6001-6010     │                       │
-         └──────────────────────┼───────────────────────┘
-                                │
-                         FRP Tunnel Forwarding
-                      6001-6010 → Target:22
-```
-
-## ⚡ Quick Start (3 Steps)
-
-### Step 1: Install
+### Install
 ```bash
-# Method 1: Using pip (recommended)
 pip install frp-tunnel
-
-# Method 2: From source (for development)
-git clone https://github.com/cicy-dev/frp-tunnel.git
-cd frp-tunnel
-bash install.sh
 ```
 
-### Step 2: Set Up Server (One-time)
+### Start Server (One-time setup)
 ```bash
-# On your VPS/cloud server
-frp-tunnel setup
+# Auto-generates token and config
+frp-tunnel server
+
+# Output:
+# 🚀 Starting server...
+# 🔑 Generated token: frp_abc123...
+# ✅ Server started
 ```
-*Follow the prompts - it takes 30 seconds*
 
-### Step 3: Connect from Anywhere
+### Connect Client
 ```bash
-# Google Colab (paste in notebook)
-!pip install frp-tunnel && frp-tunnel colab --server YOUR_SERVER_IP --token YOUR_TOKEN
-
-# Your computer
-frp-tunnel client --server YOUR_SERVER_IP --token YOUR_TOKEN
+# Connect to server
+frp-tunnel client --server YOUR_SERVER_IP --token YOUR_TOKEN --port 6000
 
 # Then SSH normally
-ssh -p 6001 colab@YOUR_SERVER_IP
+ssh -p 6000 user@YOUR_SERVER_IP
 ```
 
-## 🎮 Available Commands
+## 🎮 Commands
 
 ```bash
-# Setup and configuration
-frp-tunnel setup                    # Interactive setup wizard
-frp-tunnel status                   # Show tunnel status
+# Server
+frp-tunnel server              # Start server (auto-gen token)
+frp-tunnel server -f           # Force restart
+frp-tunnel server -r           # Restart
+frp-tunnel server-status       # Show server status
 
-# Start/stop services
-frp-tunnel start --component server # Start server
-frp-tunnel start --component client # Start client  
-frp-tunnel stop                     # Stop all tunnels
+# Client
+frp-tunnel client --server IP --token TOKEN --port 6000
+frp-tunnel client-status       # Show client status
 
 # Utilities
-frp-tunnel logs                     # View logs
-frp-tunnel clean                    # Clean cache
-frp-tunnel install                  # Install/update binaries
+frp-tunnel token               # Generate new token
+frp-tunnel version             # Show version
+frp-tunnel stop                # Stop all
 ```
 
-## 🔧 Real-World Examples
+## 📊 Status Display
 
-### Example 1: Access Google Colab Files
-```python
-# In Colab notebook
-!pip install frp-tunnel && frp-tunnel colab --server 34.123.45.67 --token abc123
-```
 ```bash
-# On your computer
-ssh -p 6001 colab@34.123.45.67
-# Now you can browse files, upload/download, use git, etc.
+$ frp-tunnel server-status
+
+📊 Server Status
+🖥️  Server: Running
+   🌐 Public IP: 34.102.78.219
+   📄 Config: ~/data/frp/frps.ini
+   📋 Log: ~/data/frp/frps.log
+   🔧 Binary: ~/.frp-tunnel/bin/frps
+   👥 Active clients: 1
+      • ssh_6000: port 6000 (v0.52.3, 0 conns)
 ```
 
-### Example 2: VS Code Remote Development
-1. Set up tunnel (steps above)
-2. In VS Code: Install "Remote-SSH" extension
-3. Connect to `colab@YOUR_SERVER_IP:6001`
-4. Code directly in Colab with full VS Code features!
+## 🔧 Configuration
 
-### Example 3: Multiple Connections
+### Server Config (`~/data/frp/frps.ini`)
+```ini
+[common]
+bind_port = 7000
+token = frp_your_token_here
+dashboard_port = 7500
+dashboard_user = admin
+dashboard_pwd = admin
+```
+
+### Client Config (`~/data/frp/frpc.ini`)
+```ini
+[common]
+server_addr = YOUR_SERVER_IP
+server_port = 7000
+token = frp_your_token_here
+
+[ssh_6000]
+type = tcp
+local_ip = 127.0.0.1
+local_port = 22
+remote_port = 6000
+```
+
+Add more ports by editing the config file manually.
+
+## 🌟 Features
+
+- ✅ **Auto-download** FRP binaries (no manual installation)
+- ✅ **Auto-generate** token and config
+- ✅ **Background mode** - runs as daemon
+- ✅ **Multi-platform** - Windows, Linux, macOS
+- ✅ **Dashboard** - Web UI at port 7500
+- ✅ **API support** - Query client status via REST API
+
+## 🛠️ Advanced Usage
+
+### Multiple Ports
+Edit `~/data/frp/frpc.ini` to add more ports:
+```ini
+[ssh_6001]
+type = tcp
+local_ip = 127.0.0.1
+local_port = 22
+remote_port = 6001
+```
+
+### Dashboard Access
+Visit `http://YOUR_SERVER_IP:7500` (admin/admin)
+
+### API Access
 ```bash
-# Colab 1
-frp-tunnel colab --server YOUR_IP --token YOUR_TOKEN --port 6001
-
-# Colab 2  
-frp-tunnel colab --server YOUR_IP --token YOUR_TOKEN --port 6002
-
-# Your laptop
-frp-tunnel client --server YOUR_IP --token YOUR_TOKEN --port 6003
+curl -u admin:admin http://localhost:7500/api/proxy/tcp
 ```
 
-### Example 4: Start/Stop Management
-```bash
-# Start server
-frp-tunnel start --component server
-
-# Check status
-frp-tunnel status
-
-# Stop all
-frp-tunnel stop
-
-# Start client
-frp-tunnel start --component client
-```
-
-## 🛠️ Troubleshooting (Common Issues)
-
-### "Connection refused"
-```bash
-# Check if server is running
-ssh YOUR_SERVER_IP "ps aux | grep frps"
-```
-
-### "Permission denied"
-```bash
-# Make sure you're using the right port
-ssh -p 6001 colab@YOUR_SERVER_IP  # Not port 22!
-```
-
-### "Token mismatch"
-```bash
-# Get the token from your server
-ssh YOUR_SERVER_IP "cat ~/data/frp/frps.ini | grep token"
-```
-
-## 📋 What You Need
+## 📋 Requirements
 
 - **Server**: Any Linux VPS (Google Cloud, AWS, DigitalOcean, etc.)
-- **Ports**: Open ports 6001-6010 and 7000 on your server
-- **Client**: Any computer with SSH (Windows/Mac/Linux)
+- **Ports**: Open ports 6000-6010 and 7000, 7500 on your server
+- **Client**: Any computer with SSH
 
-### Quick Server Setup (GCP/AWS)
-```bash
-# Open firewall ports
-gcloud compute firewall-rules create frp-tunnel --allow tcp:6001-6010,tcp:7000
+## 🙏 Acknowledgments
 
-# Or for AWS
-aws ec2 authorize-security-group-ingress --group-id sg-xxxxx --protocol tcp --port 6001-6010 --cidr 0.0.0.0/0
-```
-
-## 🎉 That's It!
-
-No complex configuration files, no networking knowledge needed. Just install, run, and connect!
-
-**Need help?** [Open an issue](https://github.com/cicy-dev/frp-tunnel/issues) - we respond quickly!
+Special thanks to the [FRP project](https://github.com/fatedier/frp) for creating the excellent reverse proxy tool.
 
 ---
 
 ⭐ **Star this repo if it saved you time!**
-
-## 🙏 Acknowledgments
-
-Special thanks to the [FRP project](https://github.com/fatedier/frp) authors for creating the excellent reverse proxy tool that makes this package possible.
