@@ -290,10 +290,17 @@ def client_add_port(ports):
     # Add new ports
     all_ports = sorted(list(set(existing_ports + list(ports))))
     
-    # Regenerate config
-    from click import Context
-    ctx = Context(client)
-    ctx.invoke(client, server=server, token=token, port=all_ports, remove=())
+    # Stop existing client
+    stop_client()
+    import time
+    time.sleep(1)
+    
+    # Generate new config
+    _generate_client_config(server, token, all_ports)
+    _start_frpc()
+    
+    ports_str = ", ".join(str(p) for p in all_ports)
+    console.print(f"✅ Added ports. Active: {ports_str}")
 
 @cli.command('client-remove-port')
 @click.argument('ports', nargs=-1, type=int, required=True)
@@ -324,10 +331,69 @@ def client_remove_port(ports):
         console.print("❌ Error: Cannot remove all ports", style="red")
         return
     
-    # Regenerate config
-    from click import Context
-    ctx = Context(client)
-    ctx.invoke(client, server=server, token=token, port=all_ports, remove=())
+    # Stop existing client
+    stop_client()
+    import time
+    time.sleep(1)
+    
+    # Generate new config
+    _generate_client_config(server, token, all_ports)
+    _start_frpc()
+    
+    ports_str = ", ".join(str(p) for p in all_ports)
+    console.print(f"✅ Removed ports. Active: {ports_str}")
+
+def _generate_client_config(server, token, ports):
+    """Generate client config file"""
+    config_lines = [
+        "[common]",
+        f"server_addr = {server}",
+        "server_port = 7000",
+        f"token = {token}",
+        f"log_file = {DATA_DIR}/frpc.log",
+        "log_level = info",
+        "login_fail_exit = false",
+        ""
+    ]
+    
+    # Add SSH port (first port)
+    config_lines.extend([
+        f"[ssh_{ports[0]}]",
+        "type = tcp",
+        "local_ip = 127.0.0.1",
+        "local_port = 22",
+        f"remote_port = {ports[0]}",
+        ""
+    ])
+    
+    # Add additional ports
+    for p in ports[1:]:
+        service_name = "rdp" if "04" in str(p) or p == 3389 else "service"
+        local_port = 3389 if service_name == "rdp" else p
+        config_lines.extend([
+            f"[{service_name}_{p}]",
+            "type = tcp",
+            "local_ip = 127.0.0.1",
+            f"local_port = {local_port}",
+            f"remote_port = {p}",
+            ""
+        ])
+    
+    CLIENT_INI.write_text("\n".join(config_lines))
+
+def _start_frpc():
+    """Start frpc process"""
+    frpc = BIN_DIR / ('frpc.exe' if sys.platform == 'win32' else 'frpc')
+    
+    if sys.platform == 'win32':
+        subprocess.Popen([str(frpc), '-c', str(CLIENT_INI)],
+                        creationflags=subprocess.CREATE_NO_WINDOW)
+    else:
+        subprocess.Popen([str(frpc), '-c', str(CLIENT_INI)],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    
+    import time
+    time.sleep(2)
 
 @cli.command()
 def stop():
