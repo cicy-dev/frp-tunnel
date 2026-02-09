@@ -76,22 +76,29 @@ jobs:
           FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
         run: |
           pip install frp-tunnel
-          Start-Process -NoNewWindow frp-tunnel -ArgumentList "client --server 34.102.78.219 --token $env:FRP_TOKEN --port 6003"
-          Start-Sleep -Seconds 3
           
-          # 添加 RDP 端口映射
-          $frpcConfig = "$env:USERPROFILE\data\frp\frpc.ini"
-          Add-Content $frpcConfig "`n[rdp_6004]"
-          Add-Content $frpcConfig "type = tcp"
-          Add-Content $frpcConfig "local_ip = 127.0.0.1"
-          Add-Content $frpcConfig "local_port = 3389"
-          Add-Content $frpcConfig "remote_port = 6004"
-          
-          # 重启 FRP 客户端
-          Stop-Process -Name frp-tunnel -Force -ErrorAction SilentlyContinue
-          Start-Sleep -Seconds 2
+          # 先启动获取默认配置
           Start-Process -NoNewWindow frp-tunnel -ArgumentList "client --server 34.102.78.219 --token $env:FRP_TOKEN --port 6003"
           Start-Sleep -Seconds 5
+          
+          # 添加 RDP 端口映射到配置文件
+          $frpcConfig = "$env:USERPROFILE\data\frp\frpc.ini"
+          if (Test-Path $frpcConfig) {
+            Add-Content $frpcConfig "`n[rdp_6004]"
+            Add-Content $frpcConfig "type = tcp"
+            Add-Content $frpcConfig "local_ip = 127.0.0.1"
+            Add-Content $frpcConfig "local_port = 3389"
+            Add-Content $frpcConfig "remote_port = 6004"
+            
+            # 重启 FRP 客户端
+            Stop-Process -Name python -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+            Start-Process -NoNewWindow frp-tunnel -ArgumentList "client --server 34.102.78.219 --token $env:FRP_TOKEN --port 6003"
+            Start-Sleep -Seconds 5
+            Write-Host "RDP port mapping added"
+          } else {
+            Write-Host "Warning: frpc.ini not found at $frpcConfig"
+          }
           Write-Host "FRP Tunnel started."
         shell: powershell
       

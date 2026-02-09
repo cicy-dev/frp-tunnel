@@ -69,10 +69,6 @@ Invoke-Command -ComputerName localhost -Credential $cred -ScriptBlock {
     & "C:\install-tools.ps1"
 }
 
-# 安装 code-server (使用 npm)
-Write-Host "Installing code-server..."
-npm install -g code-server
-
 Write-Host "Tools installation completed"
 
 Write-Host "`nBoot script completed successfully!"
