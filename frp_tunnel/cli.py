@@ -237,14 +237,6 @@ def show_status():
         if ip != 'unknown':
             console.print(f"   🌐 Public IP: [cyan]{ip}[/cyan]")
         console.print(f"   📄 Config: [cyan]{SERVER_INI}[/cyan]")
-        
-        # Read token from config
-        if SERVER_INI.exists():
-            config = configparser.ConfigParser()
-            config.read(SERVER_INI)
-            if 'common' in config and 'token' in config['common']:
-                token = config['common']['token']
-                console.print(f"   🔑 Token: [yellow]{token}[/yellow]")
     else:
         console.print("🖥️  Server: [red]Stopped[/red]")
     
