@@ -1,15 +1,14 @@
-name: Windows SSH Setup (Strict Key-Only)
+name: Windows SSH Setup (Key-Only & Default Dir)
 
 on:
   workflow_dispatch:
 
-# 所有的配置都在这里修改
 env:
   SSH_USER: "admin"
-  SSH_PASS: "Auth_Key_Only_2026!" # 仅用于系统内部创建用户
+  SSH_PASS: "Auth_Key_Only_2026!#" 
+  DEFAULT_DIR: "D:\projects"
   FRP_PORT: "6003"
   FRP_SERVER: "34.102.78.219"
-  # 在下方放入你的公钥
   PUBKEY_1: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDyMqv3jOo/FBGsvvCAli5yM15qNUMEcLkB+GripAUh4ng16WxE0SLXBl6EKE9YuVDjk1HSBvm41CV4nHpXukJQQmv1NJbwTr/ZgI2swG/SRQ+jDceiQcfGTRzW0fIvHzdYXiBKSHrH0ChC7u/aRwmubtxKv9XZ1AZn7PtphKn4r3oqlv8xNDwIlVqRR8ycza3x4ZYfpSe9JNrLCxY9rnk2V1z5C4SPgo70QXPnWNvPIMKLnlcoDXGy1049rZGsye3oi3WSwAVHoBhQbNxBt7iu1AZtB8nMd66SAfjeWURSzCZIAmJqX6XKsbGC11GOl+RRz2ZBvG1b3qiV1wDQ1x6p ton@jacks-MacBook-Pro.local"
   PUBKEY_2: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCxU7NlHEzlowtfTWU2dYpTS0B7af/3WI1wh+gB2JPqKLWYZnPvM5iB/AqfdJ/EH36zwcZWyXaGp4I7EnklmKMRiaaVr15tIx8Wvl8KlwQYStW56bGmRFTtpVYaMZ0CrhZFuJRVa29riEByJcBDdS7El4DVor3/fJ3LX/KKofcc0RH/E2bv5uvaI/vCuptPIFAkgquuACvqMP5gjtXaeI9Xbfuss8X2m2BxQxopYTOwtwn0ThZFDTaGydkQdPxhAMLqZ8BJWLKwim4UYB5fixL3v22vifYCdVTz56yxXoCklllcy8C27Jcg6MrSwurNaHBDGAJEHl7jkWcKx8FNPvf6C1ABtz/lQGLzSclHbsYnjwtkhT79n6BiTmv6wIOOm3JXc5GTkqwEOkoyuvHcbWSxCeYIMwUcN4Z6Vnw0gQraGvjKH9nwBvQFMWM8s9t8/jaKBbd12AUpbsq4dY3HuqjNzfPT8G73QIlsjCCN/iUZ3rEdoii4gBOeDZ55SEbkQXE= w3c_offical@gcp"
 
@@ -18,7 +17,7 @@ jobs:
     runs-on: windows-latest
     
     steps:
-      - name: Install OpenSSH and Set Keys
+      - name: Install OpenSSH and Configure Environment
         env:
           FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
         run: |
@@ -27,17 +26,21 @@ jobs:
           Start-Service sshd
           Set-Service -Name sshd -StartupType 'Automatic'
           
-          # 2. 创建用户 (仅内部使用)
+          # 2. 创建目录并准备工作空间
+          if (!(Test-Path $env:DEFAULT_DIR)) {
+              New-Item -ItemType Directory -Force -Path $env:DEFAULT_DIR
+          }
+
+          # 3. 创建用户
           $securePass = ConvertTo-SecureString $env:SSH_PASS -AsPlainText -Force
           if (Get-LocalUser -Name $env:SSH_USER -ErrorAction SilentlyContinue) { Remove-LocalUser -Name $env:SSH_USER }
           New-LocalUser -Name $env:SSH_USER -Password $securePass -AccountNeverExpires
           Add-LocalGroupMember -Group "Administrators" -Member $env:SSH_USER
           
-          # 3. 部署公钥文件
+          # 4. 配置公钥及严格权限
           $keyFile = "C:\ProgramData\ssh\administrators_authorized_keys"
           "$env:PUBKEY_1`n$env:PUBKEY_2" | Out-File -FilePath $keyFile -Encoding ascii
           
-          # 4. 严格权限设置 (不设置此步公钥登录会失效)
           $acl = Get-Acl $keyFile
           $acl.SetAccessRuleProtection($true, $false)
           $admins = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::BuiltinAdministratorsSid, $null)
@@ -47,44 +50,14 @@ jobs:
           $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($system, "FullControl", "Allow")))
           Set-Acl $keyFile $acl
           
-          # 5. 修改配置：彻底禁用密码登录
+          # 5. 修改 SSHD 配置 (禁用密码)
           $config = "C:\ProgramData\ssh\sshd_config"
-          $content = Get-Content $config
-          $content = $content -replace "^#?PubkeyAuthentication.*", "PubkeyAuthentication yes"
-          $content = $content -replace "^#?PasswordAuthentication.*", "PasswordAuthentication no"
-          $content = $content -replace "^#?PermitEmptyPasswords.*", "PermitEmptyPasswords no"
-          $content | Set-Content $config
-          
-          # 确保管理员组指定到正确的 key 文件
-          Add-Content $config "`nMatch Group administrators`n    AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys"
-          
-          Restart-Service sshd
-        shell: powershell
+          (Get-Content $config) | Where-Object { 
+            $_ -notmatch "^PasswordAuthentication" -and 
+            $_ -notmatch "^PubkeyAuthentication" -and
+            $_ -notmatch "Match Group administrators" -and
+            $_ -notmatch "AuthorizedKeysFile __PROGRAMDATA__"
+          } | Set-Content $config
 
-      - name: Start FRP Tunnel
-        env:
-          FRP_TOKEN: ${{ secrets.FRP_TOKEN }}
-        run: |
-          pip install frp-tunnel
-          Start-Process -NoNewWindow frp-tunnel -ArgumentList "client --server $env:FRP_SERVER --token $env:FRP_TOKEN --port $env:FRP_PORT"
-          Start-Sleep -Seconds 5
-        shell: powershell
-
-      - name: Connection Guide
-        run: |
-          Write-Host "-------------------------------------------------------"
-          Write-Host "SSH SERVICE IS READY (PUBLIC KEY ONLY)"
-          Write-Host "Command: ssh -p $env:FRP_PORT ${env:SSH_USER}@${env:FRP_SERVER}"
-          Write-Host "Note: Password login is physically disabled."
-          Write-Host "-------------------------------------------------------"
-        shell: powershell
-
-      - name: Keep Alive
-        run: |
-          # 运行 6 小时
-          $sw = [System.Diagnostics.Stopwatch]::StartNew()
-          while ($sw.Elapsed.TotalHours -lt 6) {
-            Write-Host "Keep-alive: $($sw.Elapsed.ToString('hh\:mm\:ss'))"
-            Start-Sleep -Seconds 60
-          }
-        shell: powershell
+          Add-Content $config "`nPubkeyAuthentication yes"
+          Add-Content $config "`nPassword
