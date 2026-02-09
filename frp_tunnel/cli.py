@@ -237,6 +237,9 @@ def show_status():
         if ip != 'unknown':
             console.print(f"   🌐 Public IP: [cyan]{ip}[/cyan]")
         console.print(f"   📄 Config: [cyan]{SERVER_INI}[/cyan]")
+        log_file = DATA_DIR / 'frps.log'
+        if log_file.exists():
+            console.print(f"   📋 Log: [cyan]{log_file}[/cyan]")
     else:
         console.print("🖥️  Server: [red]Stopped[/red]")
     
@@ -244,6 +247,9 @@ def show_status():
     if is_running('frpc'):
         console.print("📱 Client: [green]Connected[/green]")
         console.print(f"   📄 Config: [cyan]{CLIENT_INI}[/cyan]")
+        log_file = DATA_DIR / 'frpc.log'
+        if log_file.exists():
+            console.print(f"   📋 Log: [cyan]{log_file}[/cyan]")
     else:
         console.print("📱 Client: [red]Disconnected[/red]")
     
