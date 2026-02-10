@@ -53,12 +53,12 @@ $json = $result | ConvertFrom-Json
 # 调试输出
 Write-Host "TEST value: $($json.TEST)"
 
-# 导出为系统环境变量
-[System.Environment]::SetEnvironmentVariable("LOGIN_USERNAME", $json.LOGIN_USERNAME, "Machine")
-[System.Environment]::SetEnvironmentVariable("LOGIN_PASSWORD", $json.LOGIN_PASSWORD, "Machine")
-[System.Environment]::SetEnvironmentVariable("SSH_PUB_KEY_1", $json.SSH_PUB_KEY_1, "Machine")
-[System.Environment]::SetEnvironmentVariable("SSH_PUB_KEY_2", $json.SSH_PUB_KEY_2, "Machine")
-Write-Host "Environment variables exported globally"
+# 导出所有 JSON 字段为系统环境变量
+$json.PSObject.Properties | ForEach-Object {
+    [System.Environment]::SetEnvironmentVariable($_.Name, $_.Value, "Machine")
+    Write-Host "Exported: $($_.Name)"
+}
+Write-Host "All environment variables exported globally"
 
 # 验证必需字段
 if (-not $json.LOGIN_USERNAME) {
