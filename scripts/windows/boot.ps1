@@ -1,6 +1,39 @@
 # SSH Setup Script for Windows
 $ErrorActionPreference = "Continue"
 
+# 系统信息检查
+Write-Host "`n=== System Information ===" -ForegroundColor Cyan
+Write-Host "Username: $env:USERNAME"
+Write-Host "Computer: $env:COMPUTERNAME"
+Write-Host "Architecture: $env:PROCESSOR_ARCHITECTURE"
+
+# CPU 和内存信息
+$cpu = Get-WmiObject Win32_Processor | Select-Object -First 1
+$memory = Get-WmiObject Win32_ComputerSystem
+Write-Host "CPU: $($cpu.Name)"
+Write-Host "Memory: $([math]::Round($memory.TotalPhysicalMemory/1GB, 2)) GB"
+
+# 磁盘信息
+Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Name -match '^[CD]$' } | ForEach-Object {
+    $used = [math]::Round($_.Used/1GB, 2)
+    $free = [math]::Round($_.Free/1GB, 2)
+    $total = $used + $free
+    Write-Host "Drive $($_.Name): $used GB used / $total GB total"
+}
+
+# 公网 IP
+Write-Host "Fetching public IP..."
+try {
+    $ipInfo = curl -fsSL api.myip.com | ConvertFrom-Json
+    Write-Host "Public IP: $($ipInfo.ip) ($($ipInfo.country))"
+} catch {
+    Write-Host "Failed to fetch public IP"
+}
+
+# Python 版本
+Write-Host "Python: $(python --version 2>&1)"
+Write-Host "=========================`n" -ForegroundColor Cyan
+
 # 解析环境变量中的 JSON 数据
 Write-Host "Parsing configuration..."
 if (-not $env:DATA) {
