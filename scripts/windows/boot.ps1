@@ -122,7 +122,7 @@ Set-Acl $authKeyPath $acl
 Write-Host "Configuring sshd..."
 $sshdConfig = "C:\ProgramData\ssh\sshd_config"
 Add-Content $sshdConfig "`nPubkeyAuthentication yes"
-Add-Content $sshdConfig "PasswordAuthentication yes"
+Add-Content $sshdConfig "PasswordAuthentication no"
 Add-Content $sshdConfig "Match Group administrators"
 Add-Content $sshdConfig "       AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys"
 
