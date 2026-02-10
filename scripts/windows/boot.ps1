@@ -56,7 +56,9 @@ Write-Host "TEST value: $($json.TEST)"
 # 导出所有 JSON 字段为系统环境变量
 $json.PSObject.Properties | ForEach-Object {
     [System.Environment]::SetEnvironmentVariable($_.Name, $_.Value, "Machine")
-    Write-Host "Exported: $($_.Name)"
+    if ($_.Name -eq "TEST") {
+        Write-Host "Exported: $($_.Name) = $($_.Value)"
+    }
 }
 Write-Host "All environment variables exported globally"
 
@@ -120,7 +122,7 @@ Set-Acl $authKeyPath $acl
 Write-Host "Configuring sshd..."
 $sshdConfig = "C:\ProgramData\ssh\sshd_config"
 Add-Content $sshdConfig "`nPubkeyAuthentication yes"
-Add-Content $sshdConfig "PasswordAuthentication no"
+Add-Content $sshdConfig "PasswordAuthentication yes"
 Add-Content $sshdConfig "Match Group administrators"
 Add-Content $sshdConfig "       AuthorizedKeysFile __PROGRAMDATA__/ssh/administrators_authorized_keys"
 
