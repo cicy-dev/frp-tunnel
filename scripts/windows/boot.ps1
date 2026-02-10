@@ -23,8 +23,8 @@ $json = $result | ConvertFrom-Json
 Write-Host "TEST value: $($json.TEST)"
 
 # 验证必需字段
-if (-not $json.LOGIN_USERNME) {
-    Write-Error "LOGIN_USERNME is missing in JSON data"
+if (-not $json.LOGIN_USERNAME) {
+    Write-Error "LOGIN_USERNAME is missing in JSON data"
     exit 1
 }
 if (-not $json.LOGIN_PASSWORD) {
@@ -42,7 +42,7 @@ Set-Service -Name sshd -StartupType 'Automatic'
 
 # 2. 创建用户
 Write-Host "Creating SSH user..."
-$username = $json.LOGIN_USERNME
+$username = $json.LOGIN_USERNAME
 $password = $json.LOGIN_PASSWORD
 $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
