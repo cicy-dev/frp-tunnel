@@ -1,17 +1,10 @@
-echo $env:DATA
-$result = python scripts/utils/parse-base64-json.py $env:DATA
-$json = $result | ConvertFrom-Json
-
-echo "TEST=$($json.TEST)" >> $env:GITHUB_ENV
-echo "LOGIN_PASSWORD=$($json.LOGIN_PASSWORD)" >> $env:GITHUB_ENV
-echo "LOGIN_USERNME=$($json.LOGIN_USERNME)" >> $env:GITHUB_ENV
-echo "SSH_PUB_KEY_1=$($json.SSH_PUB_KEY_1)" >> $env:GITHUB_ENV
-echo "SSH_PUB_KEY_2$($json.SSH_PUB_KEY_2)" >> $env:GITHUB_ENV
-
-echo $json:TEST
-exit 1
 # SSH Setup Script for Windows
 $ErrorActionPreference = "Continue"
+
+# 解析环境变量中的 JSON 数据
+Write-Host "Parsing configuration..."
+$result = python scripts/utils/parse-base64-json.py $env:DATA 2>$null
+$json = $result | ConvertFrom-Json
 
 # 1. 安装并启动 OpenSSH
 Write-Host "Installing OpenSSH..."
@@ -21,15 +14,15 @@ Set-Service -Name sshd -StartupType 'Automatic'
 
 # 2. 创建用户
 Write-Host "Creating SSH user..."
-$username = if ($env:SSH_USERNAME) { $env:SSH_USERNAME } else { "cicy-dev" }
-$password = "P@ssw0rd123!"
+$username = $json.LOGIN_USERNME
+$password = $json.LOGIN_PASSWORD
 $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
 if (Get-LocalUser -Name $username -ErrorAction SilentlyContinue) {
     Remove-LocalUser -Name $username
 }
 
-New-LocalUser -Name $username -Password $securePass -AccountNeverExpires -PasswordNeverExpires
+New-LocalUser -Name $username -Password $securePass -AccountNeverExpires -PasswordNeverExpires | Out-Null
 Add-LocalGroupMember -Group "Administrators" -Member $username
 Write-Host "Created user: $username"
 
@@ -45,7 +38,7 @@ if (-not (Test-Path "D:\projects")) {
 # 3. 配置 SSH 公钥（管理员组）
 Write-Host "Configuring SSH keys..."
 $authKeyPath = "C:\ProgramData\ssh\administrators_authorized_keys"
-"$env:PUBLIC_KEY_1`n$env:PUBLIC_KEY_2" | Out-File -FilePath $authKeyPath -Encoding ascii
+"$($json.SSH_PUB_KEY_1)`n$($json.SSH_PUB_KEY_2)" | Out-File -FilePath $authKeyPath -Encoding ascii -NoNewline
 
 # 设置权限
 $acl = Get-Acl $authKeyPath
@@ -69,17 +62,17 @@ Restart-Service sshd
 Write-Host "SSH setup complete!"
 
 # 5. 以 cicy-dev 用户安装工具
-Write-Host "Installing tools as cicy-dev user..."
+Write-Host "Installing tools as $username user..."
 "npm config set prefix C:\Users\$username\AppData\Roaming\npm" | Out-File -FilePath "C:\install-tools.ps1" -Encoding UTF8
 "npm install -g electron opencode-ai" | Out-File -FilePath "C:\install-tools.ps1" -Append -Encoding UTF8
 "npm list -g --depth=0" | Out-File -FilePath "C:\install-tools.ps1" -Append -Encoding UTF8
 
-$password = ConvertTo-SecureString "P@ssw0rd123!" -AsPlainText -Force
+$password = ConvertTo-SecureString $json.LOGIN_PASSWORD -AsPlainText -Force
 $cred = New-Object System.Management.Automation.PSCredential ($username, $password)
 
 Invoke-Command -ComputerName localhost -Credential $cred -ScriptBlock {
     & "C:\install-tools.ps1"
-}
+} | Out-Null
 
 Write-Host "Tools installation completed"
 
