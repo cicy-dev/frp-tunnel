@@ -107,13 +107,35 @@ remote_port = 6000
 
 - ✅ **自动下载** FRP 二进制文件（无需手动安装）
 - ✅ **自动生成** token 和配置
+- ✅ **YAML 配置** - 现代格式，支持热重载
+- ✅ **多端口支持** - SSH、RDP 或任何服务
+- ✅ **简易端口管理** - 无需编辑配置文件即可添加/删除端口
+- ✅ **热重载** - 更新配置不断开 SSH 连接
 - ✅ **后台模式** - 作为守护进程运行
 - ✅ **多平台** - Windows、Linux、macOS
 - ✅ **控制面板** - Web UI 在 7500 端口
 - ✅ **API 支持** - 通过 REST API 查询客户端状态
-- ✅ **自动重连** - 客户端断线自动重连
+- ✅ **Systemd 集成** - Linux 服务器开机自启
+- ✅ **健康监控** - Windows 客户端自动监控（5.5小时运行限制）
 
 ## 🛠️ 高级用法
+
+### Systemd 服务（Linux 服务器）
+```bash
+# 启用开机自启
+sudo systemctl enable frps.service
+sudo systemctl start frps.service
+sudo systemctl status frps.service
+```
+
+服务文件会自动创建在 `/etc/systemd/system/frps.service`，如果崩溃会自动重启服务器。
+
+### Windows 客户端监控
+Windows 启动脚本包含自动监控功能：
+- 创建 `C:\running.txt` 作为健康检查文件
+- 每 50 秒监控 FRP 客户端状态
+- 运行 5.5 小时后自动停止
+- 删除 `C:\running.txt` 将停止监控循环
 
 ### 多端口
 编辑 `~/data/frp/frpc.ini` 添加更多端口：

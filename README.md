@@ -148,8 +148,27 @@ Use `ft client-add-port` and `ft client-remove-port` commands to manage ports ea
 - ✅ **Multi-platform** - Windows, Linux, macOS
 - ✅ **Dashboard** - Web UI at port 7500
 - ✅ **API support** - Query client status via REST API
+- ✅ **Systemd integration** - Auto-start on Linux boot
+- ✅ **Health monitoring** - Windows client with auto-monitoring (5.5h runtime limit)
 
 ## 🛠️ Advanced Usage
+
+### Systemd Service (Linux Server)
+```bash
+# Enable auto-start on boot
+sudo systemctl enable frps.service
+sudo systemctl start frps.service
+sudo systemctl status frps.service
+```
+
+The service file is automatically created at `/etc/systemd/system/frps.service` and will restart the server automatically if it crashes.
+
+### Windows Client Monitoring
+The Windows boot script includes automatic monitoring:
+- Creates `C:\running.txt` as a health check file
+- Monitors FRP client status every 50 seconds
+- Auto-stops after 5.5 hours runtime
+- Deleting `C:\running.txt` will stop the monitoring loop
 
 ### Hot Reload (No SSH Disconnection)
 ```bash
