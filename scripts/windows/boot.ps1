@@ -9,10 +9,13 @@ if (-not $env:DATA) {
 }
 
 $result = python scripts/utils/parse-base64-json.py $env:DATA
+Write-Host "Raw result: $result"
+
 if (-not $result) {
     Write-Error "Failed to parse JSON data"
     exit 1
 }
+
 
 $json = $result | ConvertFrom-Json
 
