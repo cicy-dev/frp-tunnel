@@ -39,14 +39,14 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Cache project
-        id: c-project
+        id: c-projects
         uses: actions/cache@v4
         with:
-          path: c:\project
+          path: c:\projects
           key: c-project
       
       - name: Cache d project
-        id: d-project
+        id: d-projects
         uses: actions/cache@v4
         with:
           path: d:\projects

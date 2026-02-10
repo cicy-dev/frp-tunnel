@@ -1,7 +1,6 @@
 $result = python scripts/utils/parse-base64-json.py $env:DATA
 $json = $result | ConvertFrom-Json
 
-
 echo "TEST=$($json.TEST)" >> $env:GITHUB_ENV
 echo "LOGIN_PASSWORD=$($json.LOGIN_PASSWORD)" >> $env:GITHUB_ENV
 echo "LOGIN_USERNME=$($json.LOGIN_USERNME)" >> $env:GITHUB_ENV
@@ -9,7 +8,7 @@ echo "SSH_PUB_KEY_1=$($json.SSH_PUB_KEY_1)" >> $env:GITHUB_ENV
 echo "SSH_PUB_KEY_2$($json.SSH_PUB_KEY_2)" >> $env:GITHUB_ENV
 
 echo $env:TEST
-
+exit 1
 # SSH Setup Script for Windows
 $ErrorActionPreference = "Continue"
 
