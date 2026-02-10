@@ -24,10 +24,10 @@ Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Name -match '^[CD]$' } | 
 # 公网 IP
 Write-Host "Fetching public IP..."
 try {
-    $ipInfo = curl -fsSL api.myip.com | ConvertFrom-Json
-    Write-Host "Public IP: $($ipInfo.ip) ($($ipInfo.country))"
+    $ip = (Invoke-WebRequest -Uri "https://api.ipify.org" -UseBasicParsing -TimeoutSec 5).Content
+    Write-Host "Public IP: $ip"
 } catch {
-    Write-Host "Failed to fetch public IP"
+    Write-Host "Failed to fetch public IP: $($_.Exception.Message)"
 }
 
 # Python 版本
