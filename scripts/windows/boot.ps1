@@ -177,13 +177,44 @@ $job = Start-Job -ScriptBlock {
 Write-Host "FRP client started in background job (ID: $($job.Id))"
 Start-Sleep -Seconds 1
 
-# Keep alive loop - 只负责 sleep，不做其他事
-Write-Host "Keeping alive for 10 minutes..."
-$timeout = 600
-for ($i = 0; $i -lt $timeout; $i += 60) {
-    Start-Sleep -Seconds 60
-    $elapsed = [math]::Min($i + 60, $timeout)
-    Write-Host "Elapsed: $elapsed / $timeout seconds"
+# Keep alive loop with monitoring
+$monitorFile = "C:\running.txt"
+New-Item -Path $monitorFile -ItemType File -Force | Out-Null
+$startTime = Get-Date
+$runDuration = New-TimeSpan -Hours 5 -Minutes 30
+
+while ($true) {
+    Write-Host "=======================================`n"
+    Write-Host "[$(Get-Date)] Monitoring started. Checking monitor file...`n"
+
+    if (-not (Test-Path -Path $monitorFile -PathType Leaf)) {
+        Write-Host "`n======================================="
+        Write-Host "[$(Get-Date)] ERROR: Monitor file $monitorFile not found!"
+        Write-Host "[$(Get-Date)] Stopping monitoring and exiting loop."
+        Write-Host "=======================================`n"
+        break
+    }
+
+    $elapsedTime = (Get-Date) - $startTime
+    if ($elapsedTime -gt $runDuration) {
+        Write-Host "`n======================================="
+        Write-Host "[$(Get-Date)] Runtime limit reached (5h30m)."
+        Write-Host "[$(Get-Date)] Stopping monitoring."
+        Write-Host "=======================================`n"
+        break
+    }
+
+    Write-Host "`n--- FRP Client Status ---"
+    ft client-status
+    Write-Host "-------------------------`n"
+
+    Write-Host "`n======================================="
+    Write-Host "[$(Get-Date)] Active - Runtime: $($elapsedTime.ToString('hh\:mm\:ss'))"
+    Write-Host "[$(Get-Date)] Monitor file exists: $monitorFile"
+    Write-Host "[$(Get-Date)] Next check in 50 seconds (Ctrl+C to terminate)"
+    Write-Host "=======================================`n`n"
+
+    Start-Sleep -Seconds 50
 }
 
 Write-Host "Session completed."
