@@ -1,4 +1,6 @@
+echo $env:DATA
 $result = python scripts/utils/parse-base64-json.py $env:DATA
+echo $result
 $json = $result | ConvertFrom-Json
 
 echo "TEST=$($json.TEST)" >> $env:GITHUB_ENV
