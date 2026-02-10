@@ -21,7 +21,7 @@ try:
         "SSH_PUB_KEY_2": os.getenv("SSH_PUB_KEY_2"),
     }
     print("DATA:")
-    # print(json_data)
+    print(json_data)
 
     json_str = json.dumps(json_data)
     base64_result = base64.b64encode(json_str.encode()).decode()
@@ -32,8 +32,6 @@ try:
 
         token = sys.argv[1]
         repo = sys.argv[2]
-
-
 
         process = subprocess.Popen(['gh', 'auth', 'login', '--with-token'],
                                 stdin=subprocess.PIPE,

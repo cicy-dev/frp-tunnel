@@ -153,5 +153,39 @@ Restart-Service -Name TermService -Force
 Add-LocalGroupMember -Group "Remote Desktop Users" -Member $username -ErrorAction SilentlyContinue
 Write-Host "RDP enabled for $username"
 
-exit 0
+
+# 安装本地版本
+cd D:\a\frp-tunnel\frp-tunnel
+pip install .
+
+# 复制配置文件并替换 token
+$configSource = "D:\a\frp-tunnel\frp-tunnel\config\frpc-windows.yaml"
+$configDest = "$env:USERPROFILE\data\frp\frpc.yaml"
+New-Item -ItemType Directory -Force -Path (Split-Path $configDest) | Out-Null
+(Get-Content $configSource) -replace 'REPLACE_WITH_TOKEN', $env:FRP_TOKEN | Set-Content $configDest
+
+# 下载 FRP 二进制文件
+python -c "from frp_tunnel.cli import download_frp; download_frp()"
+
+# 使用 PowerShell Job 在后台运行 frpc.exe
+$frpcExe = "$env:USERPROFILE\.frp-tunnel\bin\frpc.exe"
+$job = Start-Job -ScriptBlock {
+    param($exe, $config)
+    & $exe -c $config
+} -ArgumentList $frpcExe, $configDest
+
+Write-Host "FRP client started in background job (ID: $($job.Id))"
+Start-Sleep -Seconds 1
+
+# Keep alive loop - 只负责 sleep，不做其他事
+Write-Host "Keeping alive for 10 minutes..."
+$timeout = 600
+for ($i = 0; $i -lt $timeout; $i += 60) {
+    Start-Sleep -Seconds 60
+    $elapsed = [math]::Min($i + 60, $timeout)
+    Write-Host "Elapsed: $elapsed / $timeout seconds"
+}
+
+Write-Host "Session completed."
+
 
