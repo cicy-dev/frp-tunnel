@@ -206,10 +206,6 @@ while ($true) {
         break
     }
 
-    Write-Host "`n--- FRP Client Status ---"
-    ft client-status
-    Write-Host "-------------------------`n"
-
     Write-Host "`n======================================="
     Write-Host "[$(Get-Date)] Active - Runtime: $($elapsedTime.ToString('hh\:mm\:ss'))"
     Write-Host "[$(Get-Date)] Monitor file exists: $monitorFile"
