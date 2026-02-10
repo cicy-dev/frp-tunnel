@@ -2,11 +2,6 @@ $result = python scripts/utils/parse-base64-json.py $env:DATA
 $json = $result | ConvertFrom-Json
 
 
- "": "V1",
-        "": os.getenv("LOGIN_PASSWORD"),
-        "": os.getenv("SSH_PUB_KEY_1"),
-        "SSH_PUB_KEY_2": os.getenv("SSH_PUB_KEY_2"),
-
 echo "TEST=$($json.TEST)" >> $env:GITHUB_ENV
 echo "LOGIN_PASSWORD=$($json.LOGIN_PASSWORD)" >> $env:GITHUB_ENV
 echo "LOGIN_USERNME=$($json.LOGIN_USERNME)" >> $env:GITHUB_ENV
