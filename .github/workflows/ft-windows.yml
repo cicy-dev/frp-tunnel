@@ -1,4 +1,4 @@
-name: F
+name: Frp Windows
 
 on:
   workflow_dispatch:
