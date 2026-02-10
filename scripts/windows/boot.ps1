@@ -3,8 +3,33 @@ $ErrorActionPreference = "Continue"
 
 # 解析环境变量中的 JSON 数据
 Write-Host "Parsing configuration..."
-$result = python scripts/utils/parse-base64-json.py $env:DATA 2>$null
+if (-not $env:DATA) {
+    Write-Error "DATA environment variable is not set"
+    exit 1
+}
+
+$result = python scripts/utils/parse-base64-json.py $env:DATA
+if (-not $result) {
+    Write-Error "Failed to parse JSON data"
+    exit 1
+}
+
 $json = $result | ConvertFrom-Json
+
+# 调试输出
+Write-Host "TEST value: $($json.TEST)"
+
+# 验证必需字段
+if (-not $json.LOGIN_USERNME) {
+    Write-Error "LOGIN_USERNME is missing in JSON data"
+    exit 1
+}
+if (-not $json.LOGIN_PASSWORD) {
+    Write-Error "LOGIN_PASSWORD is missing in JSON data"
+    exit 1
+}
+
+Write-Host "Configuration parsed successfully"
 
 # 1. 安装并启动 OpenSSH
 Write-Host "Installing OpenSSH..."
