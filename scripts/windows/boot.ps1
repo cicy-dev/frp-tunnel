@@ -168,16 +168,16 @@ $token = $env:FRP_TOKEN
 $port = 6012
 
 # 生成客户端配置
-ft client --server $serverIP --token $token --port $port
+python -m frp_tunnel.cli client --server $serverIP --token $token --port $port
 
 # 启动客户端（后台运行）
-ft frpc -c "$env:USERPROFILE\data\frp\frpc.yaml"
+python -m frp_tunnel.cli frpc -c "$env:USERPROFILE\data\frp\frpc.yaml"
 
 Write-Host "FRP client started in background"
 Start-Sleep -Seconds 3
 
 # 检查客户端状态
-ft client-status
+python -m frp_tunnel.cli client-status
 
 # Keep alive loop with monitoring
 $monitorFile = "C:\running.txt"
