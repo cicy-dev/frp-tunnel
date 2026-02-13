@@ -167,17 +167,57 @@ $serverIP = "35.241.96.74"
 $token = $env:FRP_TOKEN
 $port = 6012
 
+Write-Host "Debug: Server=$serverIP, Port=$port"
+Write-Host "Debug: Token length=$($token.Length)"
+
 # 生成客户端配置
+Write-Host "Generating client config..."
 python -m frp_tunnel.cli client --server $serverIP --token $token --port $port
 
-# 启动客户端（后台运行）
-python -m frp_tunnel.cli frpc -c "$env:USERPROFILE\data\frp\frpc.yaml"
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Failed to generate client config" -ForegroundColor Red
+    exit 1
+}
 
-Write-Host "FRP client started in background"
-Start-Sleep -Seconds 3
+Write-Host "Config generated successfully"
+
+# 检查配置文件
+$configPath = "$env:USERPROFILE\data\frp\frpc.yaml"
+if (Test-Path $configPath) {
+    Write-Host "Config file exists: $configPath"
+    Write-Host "Config content (first 10 lines):"
+    Get-Content $configPath | Select-Object -First 10 | ForEach-Object {
+        if ($_ -notmatch "token") {
+            Write-Host "  $_"
+        } else {
+            Write-Host "  token: ***HIDDEN***"
+        }
+    }
+} else {
+    Write-Host "ERROR: Config file not found at $configPath" -ForegroundColor Red
+    exit 1
+}
+
+# 启动客户端（后台运行）
+Write-Host "Starting FRP client in background..."
+python -m frp_tunnel.cli frpc -c $configPath
+
+Start-Sleep -Seconds 5
 
 # 检查客户端状态
+Write-Host "`nChecking client status..."
 python -m frp_tunnel.cli client-status
+
+# 检查进程
+Write-Host "`nChecking frpc.exe process..."
+$frpcProcess = Get-Process -Name frpc -ErrorAction SilentlyContinue
+if ($frpcProcess) {
+    Write-Host "frpc.exe is running (PID: $($frpcProcess.Id))"
+} else {
+    Write-Host "WARNING: frpc.exe process not found!" -ForegroundColor Yellow
+}
+
+Write-Host "FRP client setup completed"
 
 # Keep alive loop with monitoring
 $monitorFile = "C:\running.txt"
