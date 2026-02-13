@@ -446,6 +446,15 @@ def server_status():
                 console.print(f"   👥 Active clients: [yellow]API unavailable[/yellow]")
         except Exception as e:
             console.print(f"   👥 Active clients: [yellow]Unknown[/yellow]")
+        
+        # Show example command to start client
+        import yaml
+        if SERVER_YAML.exists():
+            with open(SERVER_YAML) as f:
+                config = yaml.safe_load(f)
+            token = config.get('auth', {}).get('token', 'N/A')
+            console.print(f"\n💡 Start client:")
+            console.print(f"   [yellow]ft client --server {ip} --token {token} --port <PORT>[/yellow]")
     else:
         console.print("🖥️  Server: [red]Stopped[/red]")
     console.print()
@@ -503,16 +512,11 @@ def client_status():
                 config = yaml.safe_load(f)
             server_addr = config.get('serverAddr', 'N/A')
             server_port = config.get('serverPort', 7000)
-            token = config.get('auth', {}).get('token', 'N/A')
             console.print(f"   📄 Config: [cyan]{CLIENT_YAML}[/cyan]")
             console.print(f"   🌐 Server: [cyan]{server_addr}:{server_port}[/cyan]")
             ports = [p.get('remotePort', 'N/A') for p in config.get('proxies', [])]
             if ports:
                 console.print(f"   🔌 Ports: [cyan]{', '.join(map(str, ports))}[/cyan]")
-            
-            # Show example command to start client
-            console.print(f"\n💡 Start client:")
-            console.print(f"   [yellow]ft client --server {server_addr} --token {token} --port {','.join(map(str, ports))}[/yellow]")
     console.print()
 
 def main():
