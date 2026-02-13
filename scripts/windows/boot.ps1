@@ -170,17 +170,44 @@ $port = 6012
 Write-Host "Debug: Server=$serverIP, Port=$port"
 Write-Host "Debug: Token length=$($token.Length)"
 
+# 刷新环境变量
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
 # 找到 ft.exe 路径
 $ftPath = (Get-Command ft -ErrorAction SilentlyContinue).Source
 if (-not $ftPath) {
-    Write-Host "ERROR: ft command not found" -ForegroundColor Red
-    exit 1
+    # 尝试常见路径
+    $possiblePaths = @(
+        "$env:USERPROFILE\AppData\Roaming\Python\Python*\Scripts\ft.exe",
+        "$env:LOCALAPPDATA\Programs\Python\Python*\Scripts\ft.exe",
+        "C:\Python*\Scripts\ft.exe"
+    )
+    
+    foreach ($pattern in $possiblePaths) {
+        $found = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($found) {
+            $ftPath = $found.FullName
+            break
+        }
+    }
 }
-Write-Host "Using ft from: $ftPath"
+
+if (-not $ftPath) {
+    Write-Host "ERROR: ft command not found. Trying python -m as fallback..." -ForegroundColor Yellow
+    $ftPath = "python"
+    $ftArgs = "-m", "frp_tunnel.cli"
+} else {
+    Write-Host "Using ft from: $ftPath"
+    $ftArgs = @()
+}
 
 # 生成客户端配置
 Write-Host "Generating client config..."
-& $ftPath client --server $serverIP --token $token --port $port
+if ($ftArgs.Count -gt 0) {
+    & $ftPath $ftArgs client --server $serverIP --token $token --port $port
+} else {
+    & $ftPath client --server $serverIP --token $token --port $port
+}
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Failed to generate client config" -ForegroundColor Red
@@ -208,13 +235,21 @@ if (Test-Path $configPath) {
 
 # 启动客户端（后台运行）
 Write-Host "Starting FRP client in background..."
-& $ftPath frpc -c $configPath
+if ($ftArgs.Count -gt 0) {
+    & $ftPath $ftArgs frpc -c $configPath
+} else {
+    & $ftPath frpc -c $configPath
+}
 
 Start-Sleep -Seconds 5
 
 # 检查客户端状态
 Write-Host "`nChecking client status..."
-& $ftPath client-status
+if ($ftArgs.Count -gt 0) {
+    & $ftPath $ftArgs client-status
+} else {
+    & $ftPath client-status
+}
 
 # 检查进程
 Write-Host "`nChecking frpc.exe process..."
