@@ -67,25 +67,32 @@ def is_running(name):
 @click.group()
 @click.version_option()
 def cli():
-    """🚀 FRP Tunnel - Easy SSH tunneling"""
+    """🚀 FRP Tunnel - Easy SSH tunneling with FRP
+    
+    Quick Start:
+      1. Server: ft server
+      2. Client: ft client --server <IP> --token <TOKEN> --port 6022
+      3. Start:  ft frpc -c ~/data/frp/frpc.yaml
+      4. Status: ft server-status / ft client-status
+    """
     pass
 
 @cli.command()
 def token():
-    """Generate a new token"""
+    """Generate authentication token for server"""
     new_token = gen_token()
     console.print(f"🔑 Generated token: [bold yellow]{new_token}[/bold yellow]")
-    console.print("💡 Configure manually in frps.yaml")
+    console.print("💡 Use this token when configuring clients")
 
 @cli.command('frpc', context_settings={'ignore_unknown_options': True, 'allow_interspersed_args': False})
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
 def forward_frpc(args):
-    """Forward command to frpc binary
+    """Start/control FRP client (runs in background)
     
     Examples:
-      ft frpc -c ~/data/frp/frpc.yaml
-      ft frpc reload -c ~/data/frp/frpc.yaml
-      ft frpc status -c ~/data/frp/frpc.yaml
+      ft frpc -c ~/data/frp/frpc.yaml          # Start client
+      ft frpc reload -c ~/data/frp/frpc.yaml   # Hot reload config
+      ft frpc stop -c ~/data/frp/frpc.yaml     # Stop client
     """
     download_frp()
     frpc_bin = BIN_DIR / ('frpc.exe' if sys.platform == 'win32' else 'frpc')
@@ -101,10 +108,12 @@ def forward_frpc(args):
 @cli.command('frps', context_settings={'ignore_unknown_options': True, 'allow_interspersed_args': False})
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
 def forward_frps(args):
-    """Forward command to frps binary
+    """Start/control FRP server (runs in background)
     
     Examples:
-      ft frps -c ~/data/frp/frps.yaml
+      ft frps -c ~/data/frp/frps.yaml          # Start server
+      ft frps reload -c ~/data/frp/frps.yaml   # Hot reload config
+      ft frps stop -c ~/data/frp/frps.yaml     # Stop server
     """
     download_frp()
     frps_bin = BIN_DIR / ('frps.exe' if sys.platform == 'win32' else 'frps')
@@ -120,7 +129,7 @@ def forward_frps(args):
 @cli.command()
 def version():
     """Show version information"""
-    console.print("🚀 FRP Tunnel v1.0.9")
+    console.print("🚀 FRP Tunnel v1.1.4")
     console.print("📦 Simple SSH tunneling with FRP")
     
     # Check FRP binary version
@@ -135,22 +144,27 @@ def version():
             pass
 
 @cli.command()
-@click.option('-f', '--force', is_flag=True, help='Force restart if running')
-@click.option('-r', '--restart', is_flag=True, help='Restart server')
-def server(force, restart):
-    """Start FRP server
+@click.option('-f', '--force', is_flag=True, help='Force restart if already running')
+def server(force):
+    """Start FRP server with auto-generated config
+    
+    The server will:
+      - Auto-generate authentication token
+      - Listen on port 7000 for clients
+      - Enable web dashboard on port 7500
+      - Create config at ~/data/frp/frps.yaml
     
     Examples:
-      ft server           # Start server (auto-gen token)
-      ft server -f        # Force restart
-      ft server -r        # Restart and show status
+      ft server           # Start server
+      ft server -f        # Force restart if running
+      ft server-status    # Check server status
     """
     download_frp()
     
     # Check if running
     if is_running('frps'):
-        if not force and not restart:
-            console.print("⚠️  Server already running")
+        if not force:
+            console.print("⚠️  Server already running. Use -f to force restart")
             return
         console.print("🔄 Stopping server...")
         stop_server()
@@ -198,20 +212,28 @@ def server(force, restart):
     console.print("✅ Server started")
 
 @cli.command()
-@click.option('--server', required=True, help='Server address')
-@click.option('--token', required=True, help='Authentication token')
-@click.option('--port', multiple=True, type=int, required=True, help='Remote port(s)')
+@click.option('--server', required=True, help='Server IP address')
+@click.option('--token', required=True, help='Authentication token from server')
+@click.option('--port', multiple=True, type=int, required=True, help='Remote port(s) to expose')
 def client(server, token, port):
-    """Generate client config (YAML format)
+    """Generate client config to connect to FRP server
+    
+    This creates a config file at ~/data/frp/frpc.yaml that:
+      - Connects to the specified server
+      - Exposes local SSH (port 22) to remote port(s)
+      - Supports multiple ports for additional services
     
     Examples:
-      # Generate config
-      ft client --server 1.2.3.4 --token xxx --port 6003 --port 6004
+      # Single port (SSH only)
+      ft client --server 1.2.3.4 --token xxx --port 6022
       
-      # Start client
+      # Multiple ports (SSH + RDP)
+      ft client --server 1.2.3.4 --token xxx --port 6022 --port 3389
+      
+      # After config generation, start client:
       ft frpc -c ~/data/frp/frpc.yaml
       
-      # Hot reload after config change
+      # Hot reload after config changes:
       ft frpc reload -c ~/data/frp/frpc.yaml
     """
     download_frp()
@@ -232,14 +254,14 @@ def client_add_port(ports):
     """Add port(s) to existing client config
     
     Examples:
-      ft client-add-port 6005
-      ft client-add-port 6005 6006 6007
+      ft client-add-port 8080              # Add single port
+      ft client-add-port 8080 9000 9001    # Add multiple ports
       
-      # Then hot reload
+      # Then hot reload to apply changes:
       ft frpc reload -c ~/data/frp/frpc.yaml
     """
     if not CLIENT_YAML.exists():
-        console.print("❌ Error: No existing config. Run 'frp-tunnel client' first", style="red")
+        console.print("❌ Error: No existing config. Run 'ft client' first", style="red")
         return
     
     # Read existing config
@@ -269,10 +291,10 @@ def client_remove_port(ports):
     """Remove port(s) from existing client config
     
     Examples:
-      ft client-remove-port 6005
-      ft client-remove-port 6005 6006
+      ft client-remove-port 8080           # Remove single port
+      ft client-remove-port 8080 9000      # Remove multiple ports
       
-      # Then hot reload
+      # Then hot reload to apply changes:
       ft frpc reload -c ~/data/frp/frpc.yaml
     """
     if not CLIENT_YAML.exists():
@@ -381,11 +403,17 @@ def _reload_frpc(config_file):
 
 @cli.command()
 def stop():
-    """Stop all FRP processes"""
-    console.print("🛑 Stopping...")
+    """Stop all FRP processes (server and client)
+    
+    Examples:
+      ft stop              # Stop all FRP processes
+      ft server-status     # Verify server stopped
+      ft client-status     # Verify client stopped
+    """
+    console.print("🛑 Stopping all FRP processes...")
     stop_server()
     stop_client()
-    console.print("✅ Stopped")
+    console.print("✅ All FRP processes stopped")
 
 def stop_server():
     """Stop server process"""
@@ -405,7 +433,19 @@ def stop_client():
 
 @cli.command('server-status')
 def server_status():
-    """Show server status"""
+    """Show detailed server status and connected clients
+    
+    Displays:
+      - Server running status
+      - Public IP address
+      - Configuration file location
+      - Active client connections
+      - SSH key paths
+      - Example client connection command
+    
+    Examples:
+      ft server-status     # Check server status
+    """
     console.print("\n📊 Server Status")
     if is_running('frps'):
         console.print("🖥️  Server: [green]Running[/green]")
@@ -469,7 +509,18 @@ def server_status():
 
 @cli.command('client-status')
 def client_status():
-    """Show client status"""
+    """Show detailed client status and configuration
+    
+    Displays:
+      - Client connection status
+      - Server address and port
+      - Exposed ports
+      - Configuration file location
+      - SSH authorized_keys path (platform-specific)
+    
+    Examples:
+      ft client-status     # Check client status
+    """
     console.print("\n📊 Client Status")
     if is_running('frpc'):
         try:
@@ -510,6 +561,28 @@ def client_status():
         frpc_bin = BIN_DIR / ('frpc.exe' if sys.platform == 'win32' else 'frpc')
         if frpc_bin.exists():
             console.print(f"   🔧 Binary: [cyan]{frpc_bin}[/cyan]")
+        
+        # Show SSH key path (Windows Administrator vs regular users)
+        if sys.platform == 'win32':
+            import getpass
+            username = getpass.getuser()
+            # Check if user is Administrator
+            try:
+                result = subprocess.run(['net', 'localgroup', 'Administrators'], 
+                                      capture_output=True, text=True)
+                is_admin = username.lower() in result.stdout.lower()
+            except:
+                is_admin = False
+            
+            if is_admin:
+                key_path = r'C:\ProgramData\ssh\administrators_authorized_keys'
+            else:
+                key_path = f'C:\\Users\\{username}\\.ssh\\authorized_keys'
+        else:
+            from pathlib import Path
+            key_path = str(Path.home() / '.ssh' / 'authorized_keys')
+        
+        console.print(f"   🔑 SSH Keys: [cyan]{key_path}[/cyan]")
     else:
         console.print("📱 Client: [red]Disconnected[/red]")
         

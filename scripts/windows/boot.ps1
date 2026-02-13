@@ -157,27 +157,27 @@ Write-Host "RDP enabled for $username"
 
 
 # 安装本地版本
+Write-Host "Installing frp-tunnel..."
 cd D:\a\frp-tunnel\frp-tunnel
 pip install .
 
-# 复制配置文件并替换 token
-$configSource = "D:\a\frp-tunnel\frp-tunnel\config\frpc-windows.yaml"
-$configDest = "$env:USERPROFILE\data\frp\frpc.yaml"
-New-Item -ItemType Directory -Force -Path (Split-Path $configDest) | Out-Null
-(Get-Content $configSource) -replace 'REPLACE_WITH_TOKEN', $env:FRP_TOKEN | Set-Content $configDest
+# 启动 FRP 客户端
+Write-Host "Starting FRP client..."
+$serverIP = "35.241.96.74"
+$token = $env:FRP_TOKEN
+$port = 6032
 
-# 下载 FRP 二进制文件
-python -c "from frp_tunnel.cli import download_frp; download_frp()"
+# 生成客户端配置
+ft client --server $serverIP --token $token --port $port
 
-# 使用 PowerShell Job 在后台运行 frpc.exe
-$frpcExe = "$env:USERPROFILE\.frp-tunnel\bin\frpc.exe"
-$job = Start-Job -ScriptBlock {
-    param($exe, $config)
-    & $exe -c $config
-} -ArgumentList $frpcExe, $configDest
+# 启动客户端（后台运行）
+ft frpc -c "$env:USERPROFILE\data\frp\frpc.yaml"
 
-Write-Host "FRP client started in background job (ID: $($job.Id))"
-Start-Sleep -Seconds 1
+Write-Host "FRP client started in background"
+Start-Sleep -Seconds 3
+
+# 检查客户端状态
+ft client-status
 
 # Keep alive loop with monitoring
 $monitorFile = "C:\running.txt"
