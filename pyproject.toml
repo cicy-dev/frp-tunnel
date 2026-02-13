@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "frp-tunnel"
-version = "1.1.1"
+version = "1.1.2"
 description = "Easy SSH tunneling with FRP - One command setup for Google Colab and remote servers"
 readme = "README.md"
 license = "MIT"
