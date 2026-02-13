@@ -412,6 +412,12 @@ def server_status():
         if frps_bin.exists():
             console.print(f"   🔧 Binary: [cyan]{frps_bin}[/cyan]")
         
+        # Show SSH authorized_keys path
+        import os
+        ssh_pub_key = os.path.expanduser('~/.ssh/id_rsa.pub')
+        if os.path.exists(ssh_pub_key):
+            console.print(f"   🔑 SSH Keys: [cyan]{ssh_pub_key}[/cyan]")
+        
         # Show active clients via API
         try:
             import requests
@@ -432,7 +438,8 @@ def server_status():
                         port = conf.get('remotePort', 'unknown')
                         version = proxy.get('clientVersion', 'unknown')
                         conns = proxy.get('curConns', 0)
-                        console.print(f"      • {name}: port {port} (v{version}, {conns} conns)")
+                        client_ip = proxy.get('addr', 'unknown')
+                        console.print(f"      • {name}: {ip}:{port} ← {client_ip} (v{version}, {conns} conns)")
                 else:
                     console.print(f"   👥 Active clients: [yellow]0[/yellow]")
             else:
@@ -464,6 +471,21 @@ def client_status():
         else:
             console.print("📱 Client: [green]Connected[/green]")
         
+        # Show server public IP
+        if CLIENT_YAML.exists():
+            import yaml
+            with open(CLIENT_YAML) as f:
+                config = yaml.safe_load(f)
+            server_addr = config.get('serverAddr', 'N/A')
+            server_port = config.get('serverPort', 7000)
+            console.print(f"   🌐 Server: [cyan]{server_addr}:{server_port}[/cyan]")
+            
+            # Show configured ports
+            proxies = config.get('proxies', [])
+            if proxies:
+                ports = [p.get('remotePort', 'N/A') for p in proxies]
+                console.print(f"   🔌 Ports: [cyan]{', '.join(map(str, ports))}[/cyan]")
+        
         console.print(f"   📄 Config: [cyan]{CLIENT_YAML}[/cyan]")
         log_file = DATA_DIR / 'frpc.log'
         if log_file.exists():
@@ -479,11 +501,18 @@ def client_status():
             import yaml
             with open(CLIENT_YAML) as f:
                 config = yaml.safe_load(f)
+            server_addr = config.get('serverAddr', 'N/A')
+            server_port = config.get('serverPort', 7000)
+            token = config.get('auth', {}).get('token', 'N/A')
             console.print(f"   📄 Config: [cyan]{CLIENT_YAML}[/cyan]")
-            console.print(f"   🌐 Server: [cyan]{config.get('serverAddr', 'N/A')}:{config.get('serverPort', 7000)}[/cyan]")
-            ports = [p['remotePort'] for p in config.get('proxies', [])]
+            console.print(f"   🌐 Server: [cyan]{server_addr}:{server_port}[/cyan]")
+            ports = [p.get('remotePort', 'N/A') for p in config.get('proxies', [])]
             if ports:
                 console.print(f"   🔌 Ports: [cyan]{', '.join(map(str, ports))}[/cyan]")
+            
+            # Show example command to start client
+            console.print(f"\n💡 Start client:")
+            console.print(f"   [yellow]ft client --server {server_addr} --token {token} --port {','.join(map(str, ports))}[/yellow]")
     console.print()
 
 def main():
