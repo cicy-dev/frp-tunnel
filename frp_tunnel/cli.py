@@ -90,9 +90,13 @@ def forward_frpc(args):
     download_frp()
     frpc_bin = BIN_DIR / ('frpc.exe' if sys.platform == 'win32' else 'frpc')
     
-    # Forward to frpc with all args
-    result = subprocess.run([str(frpc_bin)] + list(args))
-    sys.exit(result.returncode)
+    # Run frpc in background
+    if sys.platform == 'win32':
+        subprocess.Popen([str(frpc_bin)] + list(args),
+                         creationflags=subprocess.CREATE_NO_WINDOW)
+    else:
+        subprocess.Popen([str(frpc_bin)] + list(args),
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 @cli.command('frps', context_settings={'ignore_unknown_options': True, 'allow_interspersed_args': False})
 @click.argument('args', nargs=-1, type=click.UNPROCESSED)
@@ -105,9 +109,13 @@ def forward_frps(args):
     download_frp()
     frps_bin = BIN_DIR / ('frps.exe' if sys.platform == 'win32' else 'frps')
     
-    # Forward to frps with all args
-    result = subprocess.run([str(frps_bin)] + list(args))
-    sys.exit(result.returncode)
+    # Run frps in background
+    if sys.platform == 'win32':
+        subprocess.Popen([str(frps_bin)] + list(args),
+                         creationflags=subprocess.CREATE_NO_WINDOW)
+    else:
+        subprocess.Popen([str(frps_bin)] + list(args),
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 @cli.command()
 def version():
