@@ -165,7 +165,7 @@ pip install .
 Write-Host "Starting FRP client..."
 $serverIP = "35.241.96.74"
 $token = $env:FRP_TOKEN
-$port = 6032
+$port = 6012
 
 # 生成客户端配置
 ft client --server $serverIP --token $token --port $port
