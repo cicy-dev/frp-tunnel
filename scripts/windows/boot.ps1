@@ -170,97 +170,80 @@ $port = 6012
 Write-Host "Debug: Server=$serverIP, Port=$port"
 Write-Host "Debug: Token length=$($token.Length)"
 
-# 刷新环境变量
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+# 生成配置文件
+$configPath = "$env:USERPROFILE\data\frp\frpc.yaml"
+$configDir = Split-Path $configPath
+New-Item -ItemType Directory -Force -Path $configDir | Out-Null
 
-# 找到 ft.exe 路径
-$ftPath = (Get-Command ft -ErrorAction SilentlyContinue).Source
-if (-not $ftPath) {
-    # 尝试常见路径
-    $possiblePaths = @(
-        "$env:USERPROFILE\AppData\Roaming\Python\Python*\Scripts\ft.exe",
-        "$env:LOCALAPPDATA\Programs\Python\Python*\Scripts\ft.exe",
-        "C:\Python*\Scripts\ft.exe"
-    )
-    
-    foreach ($pattern in $possiblePaths) {
-        $found = Get-ChildItem -Path $pattern -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($found) {
-            $ftPath = $found.FullName
-            break
-        }
-    }
-}
+$config = @"
+serverAddr: $serverIP
+serverPort: 7000
+auth:
+  token: $token
+log:
+  to: $configDir\frpc.log
+  level: info
+webServer:
+  addr: 127.0.0.1
+  port: 7400
+proxies:
+  - name: ssh_$port
+    type: tcp
+    localIP: 127.0.0.1
+    localPort: 22
+    remotePort: $port
+"@
 
-if (-not $ftPath) {
-    Write-Host "ERROR: ft command not found. Trying python -m as fallback..." -ForegroundColor Yellow
-    $ftPath = "python"
-    $ftArgs = "-m", "frp_tunnel.cli"
-} else {
-    Write-Host "Using ft from: $ftPath"
-    $ftArgs = @()
-}
-
-# 生成客户端配置
-Write-Host "Generating client config..."
-if ($ftArgs.Count -gt 0) {
-    & $ftPath $ftArgs client --server $serverIP --token $token --port $port
-} else {
-    & $ftPath client --server $serverIP --token $token --port $port
-}
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Failed to generate client config" -ForegroundColor Red
-    exit 1
-}
-
+Write-Host "Generating client config at: $configPath"
+$config | Out-File -FilePath $configPath -Encoding UTF8
 Write-Host "Config generated successfully"
 
-# 检查配置文件
-$configPath = "$env:USERPROFILE\data\frp\frpc.yaml"
-if (Test-Path $configPath) {
-    Write-Host "Config file exists: $configPath"
-    Write-Host "Config content (first 10 lines):"
-    Get-Content $configPath | Select-Object -First 10 | ForEach-Object {
-        if ($_ -notmatch "token") {
-            Write-Host "  $_"
-        } else {
-            Write-Host "  token: ***HIDDEN***"
-        }
+# 显示配置（隐藏 token）
+Write-Host "Config content:"
+Get-Content $configPath | ForEach-Object {
+    if ($_ -notmatch "token") {
+        Write-Host "  $_"
+    } else {
+        Write-Host "  token: ***HIDDEN***"
     }
-} else {
-    Write-Host "ERROR: Config file not found at $configPath" -ForegroundColor Red
+}
+
+# 下载 FRP 二进制文件
+Write-Host "`nDownloading FRP binaries..."
+python -c "from frp_tunnel.core.installer import install_binaries; install_binaries()"
+
+# 找到 frpc.exe
+$frpcPath = "$env:USERPROFILE\.frp-tunnel\bin\frpc.exe"
+if (-not (Test-Path $frpcPath)) {
+    Write-Host "ERROR: frpc.exe not found at $frpcPath" -ForegroundColor Red
     exit 1
 }
+Write-Host "Using frpc from: $frpcPath"
 
 # 启动客户端（后台运行）
 Write-Host "Starting FRP client in background..."
-if ($ftArgs.Count -gt 0) {
-    & $ftPath $ftArgs frpc -c $configPath
-} else {
-    & $ftPath frpc -c $configPath
-}
+$process = Start-Process -FilePath $frpcPath -ArgumentList "-c", $configPath -WindowStyle Hidden -PassThru
+Write-Host "frpc.exe started (PID: $($process.Id))"
 
 Start-Sleep -Seconds 5
 
-# 检查客户端状态
-Write-Host "`nChecking client status..."
-if ($ftArgs.Count -gt 0) {
-    & $ftPath $ftArgs client-status
-} else {
-    & $ftPath client-status
-}
-
 # 检查进程
-Write-Host "`nChecking frpc.exe process..."
-$frpcProcess = Get-Process -Name frpc -ErrorAction SilentlyContinue
+$frpcProcess = Get-Process -Id $process.Id -ErrorAction SilentlyContinue
 if ($frpcProcess) {
-    Write-Host "frpc.exe is running (PID: $($frpcProcess.Id))"
+    Write-Host "✅ frpc.exe is running"
 } else {
-    Write-Host "WARNING: frpc.exe process not found!" -ForegroundColor Yellow
+    Write-Host "❌ frpc.exe process not found!" -ForegroundColor Red
+    exit 1
 }
 
-Write-Host "FRP client setup completed"
+# 显示日志最后几行
+$logPath = "$configDir\frpc.log"
+if (Test-Path $logPath) {
+    Write-Host "`nLast 10 lines of frpc.log:"
+    Get-Content $logPath -Tail 10 | ForEach-Object { Write-Host "  $_" }
+}
+
+Write-Host "`n✅ FRP client setup completed"
 
 # Keep alive loop with monitoring
 $monitorFile = "C:\running.txt"
