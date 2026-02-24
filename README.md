@@ -31,6 +31,22 @@ ft server
 # ✅ Server started
 ```
 
+### Install as System Service (Linux/Ubuntu/Debian)
+```bash
+# Install frps as systemd service (auto-start on boot)
+ft service install
+
+# Check status
+ft service status
+
+# Stop/start manually
+sudo systemctl stop frp-server
+sudo systemctl start frp-server
+
+# Uninstall service
+ft service uninstall
+```
+
 ### Connect Client
 ```bash
 # First time - specify server and token
@@ -55,8 +71,12 @@ ssh -p 6003 user@YOUR_SERVER_IP
 # Server
 ft server              # Start server (auto-gen token)
 ft server -f           # Force restart
-ft server -r           # Restart
 ft server-status       # Show server status
+
+# Service Management (Linux/Ubuntu/Debian)
+ft service install     # Install as systemd service (auto-start)
+ft service uninstall   # Remove systemd service
+ft service status      # Check service status
 
 # Client
 ft client --server IP --token TOKEN --port 6003 --port 6004
@@ -64,7 +84,7 @@ ft client-add-port 6005 6006    # Add ports to existing config
 ft client-remove-port 6005      # Remove ports
 ft client-status                # Show client status
 
-# Forward to frpc/frps
+# Direct Binary Control
 ft frpc -c ~/data/frp/frpc.yaml           # Start client
 ft frpc reload -c ~/data/frp/frpc.yaml    # Hot reload
 ft frps -c ~/data/frp/frps.yaml           # Start server
@@ -72,7 +92,6 @@ ft frps -c ~/data/frp/frps.yaml           # Start server
 # Utilities
 ft token               # Generate new token
 ft version             # Show version
-ft stop                # Stop all
 ```
 
 ## 📊 Status Display
