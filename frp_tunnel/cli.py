@@ -248,6 +248,76 @@ def client(server, token, port):
     console.print(f"\n🔄 Hot reload:")
     console.print(f"   ft frpc reload -c {config_file}")
 
+@cli.command('service')
+@click.argument('action', type=click.Choice(['install', 'uninstall', 'status']))
+def service_cmd(action):
+    """Manage FRP server as systemd service (Linux/Ubuntu/Debian only)
+    
+    Examples:
+      ft service install    # Install frps as systemd service
+      ft service uninstall  # Remove systemd service
+      ft service status     # Check service status
+    """
+    if sys.platform == 'win32':
+        console.print("❌ Service management only supported on Linux/macOS")
+        return
+    
+    if action == 'install':
+        frps_bin = BIN_DIR / 'frps'
+        if not frps_bin.exists():
+            console.print("❌ FRP binary not found. Run 'ft server' first.")
+            return
+        
+        service_content = f"""[Unit]
+Description=FRP Tunnel Server
+After=network.target
+
+[Service]
+Type=simple
+User={os.getenv('USER', 'root')}
+WorkingDirectory={HOME}
+ExecStart={frps_bin} -c {SERVER_YAML}
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+"""
+        service_file = Path('/etc/systemd/system/frp-server.service')
+        try:
+            subprocess.run(['sudo', 'tee', str(service_file)], input=service_content, text=True, check=True)
+            subprocess.run(['sudo', 'systemctl', 'daemon-reload'], check=True)
+            subprocess.run(['sudo', 'systemctl', 'enable', 'frp-server'], check=True)
+            subprocess.run(['sudo', 'systemctl', 'start', 'frp-server'], check=True)
+            console.print("✅ FRP server installed as systemd service")
+            console.print(f"   Binary: {frps_bin}")
+            console.print(f"   Config: {SERVER_YAML}")
+            console.print("   Start: sudo systemctl start frp-server")
+            console.print("   Stop: sudo systemctl stop frp-server")
+            console.print("   Status: sudo systemctl status frp-server")
+        except subprocess.CalledProcessError as e:
+            console.print(f"❌ Failed to install service: {e}")
+    
+    elif action == 'uninstall':
+        try:
+            subprocess.run(['sudo', 'systemctl', 'stop', 'frp-server'], check=False)
+            subprocess.run(['sudo', 'systemctl', 'disable', 'frp-server'], check=False)
+            subprocess.run(['sudo', 'rm', '/etc/systemd/system/frp-server.service'], check=True)
+            subprocess.run(['sudo', 'systemctl', 'daemon-reload'], check=True)
+            console.print("✅ FRP server service removed")
+        except subprocess.CalledProcessError as e:
+            console.print(f"❌ Failed to uninstall service: {e}")
+    
+    elif action == 'status':
+        try:
+            result = subprocess.run(['sudo', 'systemctl', 'status', 'frp-server'], 
+                                  capture_output=True, text=True)
+            console.print(result.stdout)
+        except subprocess.CalledProcessError:
+            console.print("❌ Service not installed or not running")
+
 @cli.command('client-add-port')
 @click.argument('ports', nargs=-1, type=int, required=True)
 def client_add_port(ports):
@@ -501,8 +571,10 @@ def server_status():
             with open(SERVER_YAML) as f:
                 config = yaml.safe_load(f)
             token = config.get('auth', {}).get('token', 'N/A')
-            console.print(f"\n💡 Start client:")
+            console.print(f"\n💡 Start client (IP):")
             console.print(f"   [yellow]ft client --server {ip} --token {token} --port <PORT>[/yellow]")
+            console.print(f"\n💡 Start client (Domain):")
+            console.print(f"   [yellow]ft client --server gcp-hk-1001.cicy.de5.net --token {token} --port <PORT>[/yellow]")
     else:
         console.print("🖥️  Server: [red]Stopped[/red]")
     console.print()
