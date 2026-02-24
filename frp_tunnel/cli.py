@@ -571,10 +571,11 @@ def server_status():
             with open(SERVER_YAML) as f:
                 config = yaml.safe_load(f)
             token = config.get('auth', {}).get('token', 'N/A')
+            masked_token = token[:8] + '*' * (len(token) - 16) + token[-8:] if len(token) > 16 else '***'
             console.print(f"\n💡 Start client (IP):")
-            console.print(f"   [yellow]ft client --server {ip} --token {token} --port <PORT>[/yellow]")
+            console.print(f"   [yellow]ft client --server {ip} --token {masked_token} --port <PORT>[/yellow]")
             console.print(f"\n💡 Start client (Domain):")
-            console.print(f"   [yellow]ft client --server gcp-hk-1001.cicy.de5.net --token {token} --port <PORT>[/yellow]")
+            console.print(f"   [yellow]ft client --server gcp-hk-1001.cicy.de5.net --token {masked_token} --port <PORT>[/yellow]")
     else:
         console.print("🖥️  Server: [red]Stopped[/red]")
     console.print()
