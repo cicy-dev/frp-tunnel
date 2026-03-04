@@ -539,8 +539,7 @@ def server_status():
         # Show active clients via API
         try:
             import requests
-            response = requests.get('http://localhost:7500/api/proxy/tcp', 
-                                  auth=('admin', 'admin'), timeout=2)
+            response = requests.get('http://localhost:7500/api/proxy/tcp', timeout=2)
             if response.status_code == 200:
                 data = response.json()
                 proxies = data.get('proxies', [])
