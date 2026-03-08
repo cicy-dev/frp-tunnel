@@ -266,6 +266,9 @@ def server_status():
             masked = '***'
         console.print(f"\n💡 Client command:")
         console.print(f"   [yellow]ft client init --server {ip} --token {masked} --port <PORT>[/yellow]")
+        console.print(f"\n📦 Install client:")
+        console.print(f"   [yellow]pip install frp-tunnel[/yellow]")
+        console.print(f"   [yellow]pip install frp-tunnel -i https://pypi.tuna.tsinghua.edu.cn/simple[/yellow]  # 国内镜像")
     console.print()
 
 @server.command('install')
