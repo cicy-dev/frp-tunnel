@@ -145,11 +145,12 @@ def cli():
     ft server start/stop    Control server
     ft server status        Show server status
     ft server install       Install as system service
-    ft server reload        Reload server config
+    ft server reload        Restart server (apply config)
     \b
     ft client init          Generate client config
     ft client start/stop    Control client
     ft client status        Show client status
+    ft client reload        Hot-reload client config
     \b
     ft frps <args>          Run frps directly
     ft frpc <args>          Run frpc directly
@@ -209,14 +210,18 @@ def server_stop():
 
 @server.command('reload')
 def server_reload():
-    """Reload server config"""
-    frps = _frps_bin()
-    _check_bin(frps)
-    result = subprocess.run([str(frps), 'reload', '-c', str(SERVER_YAML)], capture_output=True, text=True)
-    if result.returncode == 0:
-        console.print("✅ Server config reloaded")
+    """Restart server to apply config changes"""
+    if not SERVER_YAML.exists():
+        console.print("❌ No config. Run 'ft server init' first", style="red")
+        return
+    _stop('frps')
+    import time; time.sleep(1)
+    _start_bg(_frps_bin(), SERVER_YAML)
+    time.sleep(1)
+    if is_running('frps'):
+        console.print("✅ Server restarted")
     else:
-        console.print(f"❌ Reload failed: {result.stderr.strip()}", style="red")
+        console.print("❌ Server failed to start, check log: " + str(DATA_DIR / 'frps.log'), style="red")
 
 @server.command('status')
 def server_status():
@@ -375,6 +380,17 @@ def client_stop():
     """Stop FRP client"""
     _stop('frpc')
     console.print("✅ Client stopped")
+
+@client.command('reload')
+def client_reload():
+    """Hot-reload client config"""
+    frpc = _frpc_bin()
+    _check_bin(frpc)
+    result = subprocess.run([str(frpc), 'reload', '-c', str(CLIENT_YAML)], capture_output=True, text=True)
+    if result.returncode == 0:
+        console.print("✅ Client config reloaded")
+    else:
+        console.print(f"❌ Reload failed: {result.stderr.strip()}", style="red")
 
 @client.command('status')
 def client_status():
