@@ -8,6 +8,7 @@ import secrets
 from pathlib import Path
 import click
 from rich.console import Console
+from . import __version__
 
 console = Console()
 
@@ -129,7 +130,7 @@ def forward_frps(args):
 @cli.command()
 def version():
     """Show version information"""
-    console.print("🚀 FRP Tunnel v1.1.4")
+    console.print(f"🚀 FRP Tunnel v{__version__}")
     console.print("📦 Simple SSH tunneling with FRP")
     
     # Check FRP binary version
@@ -426,8 +427,9 @@ def _generate_client_config(server, token, ports):
     
     # Add additional proxies
     for p in ports[1:]:
-        service_name = "rdp" if "04" in str(p) or p == 3389 else "service"
-        local_port = 3389 if service_name == "rdp" else p
+        is_rdp = (p == 3389)
+        service_name = "rdp" if is_rdp else "service"
+        local_port = 3389 if is_rdp else p
         config['proxies'].append({
             'name': f'{service_name}_{p}',
             'type': 'tcp',
