@@ -106,10 +106,10 @@ dmypy.json
 # FRP specific
 *.log
 *.pid
-frps
-frpc
-frps.exe
-frpc.exe
+/frps
+/frpc
+/frps.exe
+/frpc.exe
 
 # Local configuration
 .frp-tunnel/
