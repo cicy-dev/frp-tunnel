@@ -1,117 +1,64 @@
-# 🚀 FRP Tunnel - SSH Access Made Easy
+# 🚀 FRP Tunnel
 
 **[中文文档](README_CN.md) | [English](README.md)**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-blue.svg)](https://github.com/cicy-dev/frp-tunnel)
 
-> **Connect to Google Colab or any remote server via SSH in 30 seconds. No complex setup needed!**
+> Simple CLI wrapper for [FRP](https://github.com/fatedier/frp) — manage SSH tunnels with ease.
 
-## 🎯 What This Does
+## Install
 
-- **Problem**: Can't SSH into Google Colab or access remote servers behind firewalls
-- **Solution**: Creates a secure tunnel so you can SSH from anywhere
-- **Result**: Use your favorite tools (VS Code, file transfer, etc.) with remote servers
-
-## ⚡ Quick Start
-
-### Install
 ```bash
 pip install frp-tunnel
 ```
 
-### Start Server (One-time setup)
-```bash
-# Auto-generates token and config
-ft server
+## Quick Start
 
-# Output:
-# 🚀 Starting server...
-# 🔑 Generated token: frp_abc123...
-# ✅ Server started
-```
-
-### Install as System Service (Linux/Ubuntu/Debian)
-```bash
-# Install frps as systemd service (auto-start on boot)
-ft service install
-
-# Check status
-ft service status
-
-# Stop/start manually
-sudo systemctl stop frp-server
-sudo systemctl start frp-server
-
-# Uninstall service
-ft service uninstall
-```
-
-### Connect Client
-```bash
-# First time - specify server and token
-ft client --server YOUR_SERVER_IP --token YOUR_TOKEN --port 6003
-
-# Multiple ports (SSH + RDP)
-ft client --server YOUR_SERVER_IP --token YOUR_TOKEN --port 6003 --port 6004
-
-# Add more ports later (reuses existing config)
-ft client-add-port 6005 6006
-
-# Remove ports
-ft client-remove-port 6005
-
-# Then SSH normally
-ssh -p 6003 user@YOUR_SERVER_IP
-```
-
-## 🎮 Commands
+### Server
 
 ```bash
-# Server
-ft server              # Start server (auto-gen token)
-ft server -f           # Force restart
-ft server-status       # Show server status
-
-# Service Management (Linux/Ubuntu/Debian)
-ft service install     # Install as systemd service (auto-start)
-ft service uninstall   # Remove systemd service
-ft service status      # Check service status
-
-# Client
-ft client --server IP --token TOKEN --port 6003 --port 6004
-ft client-add-port 6005 6006    # Add ports to existing config
-ft client-remove-port 6005      # Remove ports
-ft client-status                # Show client status
-
-# Direct Binary Control
-ft frpc -c ~/data/frp/frpc.yaml           # Start client
-ft frpc reload -c ~/data/frp/frpc.yaml    # Hot reload
-ft frps -c ~/data/frp/frps.yaml           # Start server
-
-# Utilities
-ft token               # Generate new token
-ft version             # Show version
+ft server init          # Generate config + auto-download binary
+ft server start         # Start server
+ft server status        # Check status
 ```
 
-## 📊 Status Display
+### Client
 
 ```bash
-$ ft server-status
-
-📊 Server Status
-🖥️  Server: Running
-   🌐 Public IP: 34.102.78.219
-   📄 Config: ~/data/frp/frps.ini
-   📋 Log: ~/data/frp/frps.log
-   🔧 Binary: ~/.frp-tunnel/bin/frps
-   👥 Active clients: 1
-      • ssh_6000: port 6000 (v0.52.3, 0 conns)
+ft client init --server 1.2.3.4 --token YOUR_TOKEN --port 6022
+ft client start         # Start client
+ssh -p 6022 user@1.2.3.4
 ```
 
-## 🔧 Configuration
+## Commands
 
-### Server Config (`~/data/frp/frps.yaml`)
+```
+ft server init          Generate ~/data/frp/frps.yaml (auto-download binary)
+ft server start         Start frps
+ft server stop          Stop frps
+ft server reload        Restart frps (apply config changes)
+ft server status        Show server status + active clients
+ft server install       Install as system service (systemd/launchd/startup)
+
+ft client init          Generate ~/data/frp/frpc.yaml (auto-download binary)
+ft client start         Start frpc
+ft client stop          Stop frpc
+ft client reload        Hot-reload frpc config (no disconnect)
+ft client status        Show client status
+
+ft frps <args>          Run frps directly (passthrough)
+ft frpc <args>          Run frpc directly (passthrough)
+ft token                Generate auth token
+ft stop                 Stop all FRP processes
+ft --version            Show version
+ft -h                   Help
+```
+
+## Configuration
+
+### Server (`~/data/frp/frps.yaml`)
+
 ```yaml
 bindPort: 7000
 auth:
@@ -126,7 +73,8 @@ log:
   level: info
 ```
 
-### Client Config (`~/data/frp/frpc.yaml`)
+### Client (`~/data/frp/frpc.yaml`)
+
 ```yaml
 serverAddr: YOUR_SERVER_IP
 serverPort: 7000
@@ -139,99 +87,38 @@ webServer:
   addr: 127.0.0.1
   port: 7400
 proxies:
-  - name: ssh_6003
+  - name: ssh_6022
     type: tcp
     localIP: 127.0.0.1
     localPort: 22
-    remotePort: 6003
-  - name: rdp_6004
-    type: tcp
-    localIP: 127.0.0.1
-    localPort: 3389
-    remotePort: 6004
+    remotePort: 6022
 ```
 
-**Note**: Both server and client use YAML format (INI is deprecated in FRP 0.52+). The `webServer` section enables hot reload and dashboard access.
+Edit the config file directly to add/remove proxies, then `ft client reload`.
 
-Use `ft client-add-port` and `ft client-remove-port` commands to manage ports easily.
+## Binaries
 
-## 🌟 Features
+FRP binaries are bundled in `bin/` for default platforms:
 
-- ✅ **Auto-download** FRP binaries (no manual installation)
-- ✅ **Auto-generate** token and config
-- ✅ **YAML config** - Modern format with hot reload support
-- ✅ **Multiple ports** - SSH, RDP, or any service
-- ✅ **Easy port management** - add/remove ports without editing config
-- ✅ **Hot reload** - Update config without disconnecting SSH
-- ✅ **Background mode** - runs as daemon
-- ✅ **Multi-platform** - Windows, Linux, macOS
-- ✅ **Dashboard** - Web UI at port 7500
-- ✅ **API support** - Query client status via REST API
-- ✅ **Systemd integration** - Auto-start on Linux boot
-- ✅ **Health monitoring** - Windows client with auto-monitoring (5.5h runtime limit)
+| Directory | Platform |
+|-----------|----------|
+| `bin/linux_arm64/` | Linux ARM64 |
+| `bin/darwin_amd64/` | macOS x86_64 |
+| `bin/windows_amd64/` | Windows x86_64 |
 
-## 🛠️ Advanced Usage
+If binaries are not found for your platform, `ft server init` / `ft client init` will auto-download from [FRP releases](https://github.com/fatedier/frp/releases).
 
-### Systemd Service (Linux Server)
-```bash
-# Enable auto-start on boot
-sudo systemctl enable frps.service
-sudo systemctl start frps.service
-sudo systemctl status frps.service
-```
+## Dashboard
 
-The service file is automatically created at `/etc/systemd/system/frps.service` and will restart the server automatically if it crashes.
+Visit `http://YOUR_SERVER_IP:7500` (admin/admin) to see connected clients.
 
-### Windows Client Monitoring
-The Windows boot script includes automatic monitoring:
-- Creates `C:\running.txt` as a health check file
-- Monitors FRP client status every 50 seconds
-- Auto-stops after 5.5 hours runtime
-- Deleting `C:\running.txt` will stop the monitoring loop
+API: `curl -u admin:admin http://localhost:7500/api/proxy/tcp`
 
-### Hot Reload (No SSH Disconnection)
-```bash
-# Start client with webServer enabled (auto-configured)
-ft frpc -c ~/data/frp/frpc.yaml &
+## Requirements
 
-# Add/remove ports
-ft client-add-port 6005 6006
-ft client-remove-port 6004
+- Python >= 3.7
+- Server: Any VPS with ports 7000, 7500, and your tunnel ports open
 
-# Hot reload - no SSH disconnection!
-ft frpc reload -c ~/data/frp/frpc.yaml
-```
+## Acknowledgments
 
-### Multiple Ports
-Use commands to manage ports easily:
-```bash
-# Add multiple ports at once
-ft client-add-port 6005 6006 6007
-
-# Remove specific ports
-ft client-remove-port 6005
-
-# Or edit config manually: ~/data/frp/frpc.yaml
-```
-
-### Dashboard Access
-Visit `http://YOUR_SERVER_IP:7500` (admin/admin)
-
-### API Access
-```bash
-curl -u admin:admin http://localhost:7500/api/proxy/tcp
-```
-
-## 📋 Requirements
-
-- **Server**: Any Linux VPS (Google Cloud, AWS, DigitalOcean, etc.)
-- **Ports**: Open ports 6000-6010 and 7000, 7500 on your server
-- **Client**: Any computer with SSH
-
-## 🙏 Acknowledgments
-
-Special thanks to the [FRP project](https://github.com/fatedier/frp) authors for creating the excellent reverse proxy tool that makes this package possible.
-
----
-
-⭐ **Star this repo if it saved you time!**
+Built on [FRP](https://github.com/fatedier/frp) by fatedier.

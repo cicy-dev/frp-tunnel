@@ -1,50 +1,39 @@
-# Quick Start Examples
+# Quick Start
 
-## Installation
+## Install
+
 ```bash
 pip install frp-tunnel
 ```
 
-## Server Setup (One-time)
-```bash
-# Auto-generates token and config
-frp-tunnel server
+## Server
 
-# Output shows your token - save it!
+```bash
+ft server init          # Generate config + download binary
+ft server start         # Start
+ft server status        # Check
 ```
 
-## Client Connection
-```bash
-# Connect to server
-frp-tunnel client --server YOUR_SERVER_IP --token YOUR_TOKEN --port 6000
+## Client
 
-# Then SSH normally
-ssh -p 6000 user@YOUR_SERVER_IP
+```bash
+ft client init --server YOUR_IP --token YOUR_TOKEN --port 6022
+ft client start
+ssh -p 6022 user@YOUR_IP
 ```
 
-## Status and Management
-```bash
-# Check server status
-frp-tunnel server-status
+## Manage
 
-# Check client status
-frp-tunnel client-status
+```bash
+# Edit config directly
+vim ~/data/frp/frpc.yaml
+
+# Hot-reload (no disconnect)
+ft client reload
+
+# Restart server (apply changes)
+ft server reload
 
 # Stop all
-frp-tunnel stop
-
-# Restart server
-frp-tunnel server -r
-```
-
-## Advanced
-```bash
-# Generate new token
-frp-tunnel token
-
-# Show version
-frp-tunnel version
-
-# Force restart server
-frp-tunnel server -f
+ft stop
 ```

@@ -1,72 +1,43 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [1.2.0] - 2026-03-08
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+### Changed
+- **CLI restructured**: `ft server <cmd>` / `ft client <cmd>` subcommand groups
+- **Binaries bundled** in `bin/` directory (linux_arm64, darwin_amd64, windows_amd64)
+- Auto-download from GitHub releases if binary not found for current platform
+- `ft server reload` now restarts server (frps has no hot-reload)
+- `ft client reload` uses frpc native hot-reload
+- `ft frps` / `ft frpc` passthrough to native binary via `execvp`
+- Removed `client-add-port` / `client-remove-port` (edit config directly)
+- Removed `service` command (merged into `ft server install`)
+- Removed `version` subcommand (use `ft --version`)
+- Added `-h` short help flag
+- Version now read from `__version__` instead of hardcoded
 
-## [Unreleased]
+### Fixed
+- RDP port detection bug (`"04" in str(p)` false positives)
+- Version inconsistency across files (unified to single source)
+- pip install compatibility with old pip/setuptools (added setup.cfg)
 
-### Added
-- Initial project structure
-- Comprehensive documentation
-- Multi-platform support
-- GitHub Actions CI/CD pipeline
+## [1.1.6] - 2026-02-24
+
+### Changed
+- YAML config format (INI deprecated in FRP 0.52+)
+- Multi-port support via CLI
+- Hot reload support with webServer config
+- Dashboard API integration for status display
 
 ## [1.0.0] - 2026-02-04
 
 ### Added
-- FRP server setup script for GCP/VPS
-- FRP client scripts for multiple platforms:
-  - Google Colab
-  - Linux/macOS
-  - Windows PowerShell
-- Automated SSH tunnel configuration
-- Token-based authentication system
-- Multi-client support (ports 6001-6010)
-- Smart configuration management
-- Real-time monitoring and diagnostics
-- Comprehensive documentation:
-  - Installation guide
-  - Configuration reference
-  - Troubleshooting guide
-- Example implementations:
-  - Jupyter notebook for Colab
-  - Automation script for batch operations
-- Security features:
-  - RSA key authentication
-  - Token validation
-  - Firewall configuration
-- Project templates:
-  - GitHub issue templates
-  - Pull request template
-  - Contributing guidelines
-  - Security policy
+- Initial release
+- FRP server/client setup scripts
+- Token-based authentication
+- Multi-platform support (Linux, Windows, macOS, Google Colab)
+- Systemd service integration
+- GitHub Actions CI/CD
 
-### Features
-- **One-click deployment**: Single command setup for all platforms
-- **Cross-platform compatibility**: Works on Linux, Windows, macOS, and Google Colab
-- **Secure by default**: Implements RSA key authentication and token validation
-- **Scalable architecture**: Supports up to 10 concurrent client connections
-- **Smart configuration**: Preserves existing configs, optional force overwrite
-- **Comprehensive logging**: Detailed logs for debugging and monitoring
-- **Auto-recovery**: Built-in health checks and restart mechanisms
-
-### Documentation
-- Complete README with quick start guide
-- Detailed installation instructions
-- Configuration reference with examples
-- Troubleshooting guide with common solutions
-- Contributing guidelines for developers
-- Security policy and best practices
-- Example implementations and automation scripts
-
-### Infrastructure
-- GitHub Actions CI/CD pipeline
-- Automated testing for shell scripts and PowerShell
-- Security scanning for hardcoded secrets
-- Documentation linting and link checking
-- Issue and PR templates for better collaboration
-
-[Unreleased]: https://github.com/cicy-dev/frp-tunnel/compare/v1.0.0...HEAD
+[1.2.0]: https://github.com/cicy-dev/frp-tunnel/compare/v1.1.6...v1.2.0
+[1.1.6]: https://github.com/cicy-dev/frp-tunnel/compare/v1.0.0...v1.1.6
 [1.0.0]: https://github.com/cicy-dev/frp-tunnel/releases/tag/v1.0.0
