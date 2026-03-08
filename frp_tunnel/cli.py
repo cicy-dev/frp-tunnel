@@ -26,17 +26,27 @@ SERVER_YAML = DATA_DIR / 'frps.yaml'
 CLIENT_YAML = DATA_DIR / 'frpc.yaml'
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# Binary paths - bundled in project
-def _get_bin_dir():
-    """Get bundled binary directory for current platform"""
+# Binary paths - bundled in project, auto-download if missing
+FRP_VERSION = "0.52.3"
+
+def _platform_info():
+    """Returns (os_name, arch) for current platform"""
     machine = platform.machine().lower()
     arch = {'x86_64': 'amd64', 'amd64': 'amd64', 'aarch64': 'arm64', 'arm64': 'arm64'}.get(machine, machine)
     os_name = {'linux': 'linux', 'darwin': 'darwin', 'win32': 'windows'}.get(sys.platform, sys.platform)
+    return os_name, arch
+
+def _get_bin_dir():
+    """Get binary directory for current platform"""
+    os_name, arch = _platform_info()
+    # Try project bundled dir first
     pkg_dir = Path(__file__).parent.parent / 'bin' / f'{os_name}_{arch}'
-    # Fallback: installed location
-    if not pkg_dir.exists():
-        pkg_dir = HOME / '.frp-tunnel' / 'bin'
-    return pkg_dir
+    if pkg_dir.exists():
+        return pkg_dir
+    # Fallback: ~/.frp-tunnel/bin
+    fallback = HOME / '.frp-tunnel' / 'bin'
+    fallback.mkdir(parents=True, exist_ok=True)
+    return fallback
 
 BIN_DIR = _get_bin_dir()
 
@@ -49,7 +59,43 @@ def _frpc_bin():
 def _check_bin(binary):
     if not binary.exists():
         console.print(f"❌ Binary not found: {binary}", style="red")
+        console.print("💡 Run 'ft server init' or 'ft client init' to auto-download")
         sys.exit(1)
+
+def _ensure_binaries():
+    """Download FRP binaries if not present in bin dir"""
+    frps, frpc = _frps_bin(), _frpc_bin()
+    if frps.exists() and frpc.exists():
+        return
+    os_name, arch = _platform_info()
+    ext = 'zip' if os_name == 'windows' else 'tar.gz'
+    filename = f"frp_{FRP_VERSION}_{os_name}_{arch}.{ext}"
+    url = f"https://github.com/fatedier/frp/releases/download/v{FRP_VERSION}/{filename}"
+    console.print(f"📦 Downloading FRP {FRP_VERSION} ({os_name}/{arch})...")
+    import tempfile, urllib.request
+    with tempfile.TemporaryDirectory() as tmp:
+        archive = Path(tmp) / filename
+        urllib.request.urlretrieve(url, archive)
+        if ext == 'zip':
+            import zipfile
+            with zipfile.ZipFile(archive) as z:
+                z.extractall(tmp)
+        else:
+            import tarfile
+            with tarfile.open(archive, 'r:gz') as t:
+                t.extractall(tmp)
+        # Find extracted dir
+        extracted = [d for d in Path(tmp).iterdir() if d.is_dir()][0]
+        import shutil
+        for name in ('frps', 'frpc', 'frps.exe', 'frpc.exe'):
+            src = extracted / name
+            if src.exists():
+                shutil.copy2(src, BIN_DIR / name)
+    # Make executable on unix
+    if os_name != 'windows':
+        frps.chmod(0o755)
+        frpc.chmod(0o755)
+    console.print("✅ Download complete")
 
 def gen_token():
     return f"frp_{secrets.token_hex(16)}"
@@ -122,6 +168,7 @@ def server():
 @click.option('--force', '-f', is_flag=True, help='Overwrite existing config')
 def server_init(force):
     """Generate server config (frps.yaml)"""
+    _ensure_binaries()
     if SERVER_YAML.exists() and not force:
         console.print(f"⚠️  Config exists: {SERVER_YAML} (use -f to overwrite)")
         return
@@ -287,6 +334,7 @@ def client():
 @click.option('--force', '-f', is_flag=True, help='Overwrite existing config')
 def client_init(server, token, port, force):
     """Generate client config (frpc.yaml)"""
+    _ensure_binaries()
     if CLIENT_YAML.exists() and not force:
         console.print(f"⚠️  Config exists: {CLIENT_YAML} (use -f to overwrite)")
         return
