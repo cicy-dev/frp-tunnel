@@ -270,6 +270,7 @@ def server_status():
         console.print(f"   [yellow]pip install frp-tunnel[/yellow]")
         console.print(f"   [yellow]pip install frp-tunnel -i https://pypi.tuna.tsinghua.edu.cn/simple[/yellow]  # 国内镜像")
         console.print(f"   [yellow]pip install git+https://github.com/cicy-dev/frp-tunnel.git[/yellow]  # GitHub 最新版")
+        console.print(f"   [yellow]pip install https://gh-proxy.com/https://github.com/cicy-dev/frp-tunnel/archive/refs/heads/main.zip[/yellow]  # 国内加速")
     console.print()
 
 @server.command('install')
