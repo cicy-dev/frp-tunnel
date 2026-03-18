@@ -242,7 +242,16 @@ def server_status():
     # Active clients via API
     try:
         import requests
-        resp = requests.get('http://localhost:7500/api/proxy/tcp', timeout=2)
+        # Read dashboard credentials from config
+        _dash_auth = None
+        if SERVER_YAML.exists():
+            import yaml as _y
+            with open(SERVER_YAML) as _f:
+                _cfg = _y.safe_load(_f) or {}
+            _ws = _cfg.get('webServer', {})
+            if _ws.get('user'):
+                _dash_auth = (_ws['user'], _ws['password'])
+        resp = requests.get('http://localhost:7500/api/proxy/tcp', auth=_dash_auth, timeout=2)
         if resp.status_code == 200:
             proxies = [p for p in resp.json().get('proxies', []) if p.get('status') != 'offline']
             console.print(f"   👥 Active clients: [green]{len(proxies)}[/green]")
@@ -349,7 +358,10 @@ def client_init(server, token, port, force):
         console.print(f"⚠️  Config exists: {CLIENT_YAML} (use -f to overwrite)")
         return
     import yaml
+    import socket
+    hostname = socket.gethostname().replace('.', '_')[:20]
     config = {
+        'user': hostname,
         'serverAddr': server,
         'serverPort': 7000,
         'auth': {'token': token},
